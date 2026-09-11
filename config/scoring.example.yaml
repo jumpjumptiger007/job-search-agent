@@ -1,0 +1,9 @@
+weights:
+  skills: 35
+  responsibilities: 25
+  seniority: 15
+  industry: 10
+  location_language_work_model: 15
+thresholds:
+  autoGenerate: 80
+  medium: 55

@@ -1,0 +1,9 @@
+providers:
+  - type: greenhouse
+    board: example-board-token
+    enabled: false
+  - type: lever
+    company: example-company-token
+    enabled: false
+# Broad web search is optional; configure credentials in .env, never here.
+rateLimitMs: 1000

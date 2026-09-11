@@ -1,0 +1,11 @@
+candidate:
+  location: ""
+  workAuthorization: ""
+  languages: []
+  preferredLocations: []
+  roleFamilies: []
+  remotePreference: any
+hardFilters:
+  excludedIndustries: []
+  requiredLanguages: []
+  unacceptableLocations: []

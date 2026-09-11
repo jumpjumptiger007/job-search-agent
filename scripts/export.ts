@@ -1,0 +1,2 @@
+import fs from "node:fs"; import path from "node:path"; import * as XLSX from "xlsx"; import { listJobs } from "../lib/jobs";
+const format=process.argv[2]==="xlsx"?"xlsx":"csv", rows=listJobs();fs.mkdirSync("exports",{recursive:true});const out=path.join("exports",`job-agent-export.${format}`);if(format==="xlsx"){const b=XLSX.utils.book_new();XLSX.utils.book_append_sheet(b,XLSX.utils.json_to_sheet(rows),"Jobs");XLSX.writeFile(b,out)}else fs.writeFileSync(out,XLSX.utils.sheet_to_csv(XLSX.utils.json_to_sheet(rows)));console.log(out);

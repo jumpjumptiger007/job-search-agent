@@ -1,0 +1,12 @@
+node_modules/
+.next/
+tsconfig.tsbuildinfo
+.env
+data/*.db
+data/*.db-*
+jobs/JOB-*/
+exports/*
+!exports/.gitkeep
+profile/*
+!profile/README.md
+logs/

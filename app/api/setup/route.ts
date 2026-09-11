@@ -1,0 +1,2 @@
+import { NextResponse } from "next/server";
+export function GET(){return NextResponse.json({state:"SETUP_REQUIRED",required:["Private factual candidate profile", "Master CV", "Role and location preferences", "Hard filters", "Scoring weights"],optional:["LLM provider", "Broad-search provider"],paths:["profile/README.md","config/preferences.example.yaml","config/scoring.example.yaml",".env.example"]})}
