@@ -10,6 +10,10 @@ Repository YAML examples/defaults are reusable public configuration and must not
 
 Temporary test or acceptance data created by Codex or automation must be cleaned up after validation. Cleanup may delete only artifacts created by that specific test run; never delete real user profile/CV files, historical job data, production-generated materials, or other user-owned runtime data unless explicitly instructed. Keep all private/runtime data git-ignored and out of commits.
 
+## Release / Handoff Workflow
+
+Develop each feature release on a dedicated feature branch; keep `main` unchanged until independent review is complete. After implementation and validation, create `docs/reviews/<VERSION>_HANDOFF.md` recording the baseline version/commit, implementation branch, final implementation commit, delivered scope, validation/test results, production-style verification where applicable, known limitations, deferred items, private-data/Git safety status, and readiness for independent review. Commit the handoff with the completed implementation on the feature branch. Do not merge, tag, or release until independent review is complete.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
