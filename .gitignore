@@ -2,6 +2,9 @@ node_modules/
 .next/
 tsconfig.tsbuildinfo
 .env
+config/search.yaml
+config/preferences.yaml
+config/scoring.yaml
 data/*.db
 data/*.db-*
 jobs/JOB-*/
