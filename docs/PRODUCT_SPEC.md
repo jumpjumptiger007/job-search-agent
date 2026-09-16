@@ -11,4 +11,7 @@ V0.2 ranks and reorders only existing factual profile skills and experience bull
 
 V0.3 accepts ordinary role, location, work-model, language, age, and per-run-limit preferences. It may query Bundesagentur für Arbeit and bounded web results; third-party platforms are discovery signals only. It keeps reusable official-source knowledge locally, prefers an official careers/ATS URL when a shallow resolution finds one, and stops after deterministic filtering, deduplication, and optional scoring for human review. Material generation remains a deliberate human action.
 
+
+## V0.4 workflow
+
 Bounded web discovery uses Bing HTML results because DuckDuckGo's HTML endpoint returned an anti-bot challenge in local validation; it remains a shallow discovery signal, not a platform scraper.

@@ -1,5 +1,5 @@
 import crypto from "node:crypto"; import fs from "node:fs"; import path from "node:path";
-import { db } from "./db"; import type { DiscoveredJob } from "./types";
+import { db } from "./db"; import type { ApplicationStatus, DiscoveredJob, ReviewStatus } from "./types";
 const norm=(v="")=>v.toLowerCase().replace(/https?:\/\/(www\.)?/,'').replace(/[^a-z0-9]+/g,' ').trim();
 const hash=(v:string)=>crypto.createHash("sha256").update(norm(v)).digest("hex");
 const official=(s:string)=>/greenhouse|lever|ashby|personio|workday|smartrecruiters|successfactors|career|careers/i.test(s);
@@ -19,3 +19,18 @@ export function ingest(job:DiscoveredJob) {
 export function writeJobFiles(job:any){ const dir=path.join(storageRoot(),job.folder_path); fs.mkdirSync(dir,{recursive:true}); fs.writeFileSync(path.join(dir,"jd_original.md"),`# Captured job description\n\n- Source: ${job.canonical_source}\n- URL: ${job.canonical_url}\n- Captured: ${job.found_at}\n\n---\n\n${job.jd_original}`); fs.writeFileSync(path.join(dir,"job.json"),JSON.stringify({jobId:job.job_id,company:job.company,title:job.title,canonicalSource:job.canonical_source,url:job.canonical_url,ats:job.ats,postedAt:job.posted_at},null,2)); fs.writeFileSync(path.join(dir,"analysis.md"),job.score_explanation||"Analysis pending. Add a factual candidate profile and scoring configuration.\n"); }
 export function listJobs(){return db().prepare("SELECT * FROM jobs ORDER BY priority DESC, found_at DESC").all() as any[];}
 export function getJob(id:string){return db().prepare("SELECT * FROM jobs WHERE job_id=?").get(id) as any;}
+export function setReviewStatus(jobId:string, reviewStatus:ReviewStatus) {
+ const d=db(), job=getJob(jobId); if(!job) throw new Error("Job not found");
+ d.prepare("UPDATE jobs SET review_status=?, skipped=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").run(reviewStatus,reviewStatus==="SKIPPED"?1:0,job.id);
+ d.prepare("INSERT INTO audit_events(job_id,action,detail) VALUES(?,?,?)").run(job.id,`REVIEW_${reviewStatus}`,JSON.stringify({from:job.review_status,to:reviewStatus}));
+ return getJob(jobId);
+}
+const applicationStates:ApplicationStatus[]=["NOT_APPLIED","READY_TO_APPLY","APPLIED","INTERVIEW","REJECTED","OFFER","WITHDRAWN"];
+export function setApplicationStatus(jobId:string, applicationStatus:ApplicationStatus) {
+ const d=db(), job=getJob(jobId); if(!job) throw new Error("Job not found");
+ if(!applicationStates.includes(applicationStatus)) throw new Error("Invalid application status");
+ if(applicationStatus==="READY_TO_APPLY"&&(job.review_status!=="INTERESTED"||job.material_status!=="READY")) throw new Error("Materials must be ready for an interested job before it can be ready to apply");
+ d.prepare("UPDATE jobs SET application_status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").run(applicationStatus,job.id);
+ d.prepare("INSERT INTO audit_events(job_id,action,detail) VALUES(?,?,?)").run(job.id,"APPLICATION_STATUS_CHANGED",JSON.stringify({from:job.application_status,to:applicationStatus}));
+ return getJob(jobId);
+}

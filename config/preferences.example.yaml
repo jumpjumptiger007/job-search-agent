@@ -1,7 +1,7 @@
 candidate:
   location: ""
   workAuthorization: ""
-  languages: []
+  languages: [] # Candidate facts used for scoring, not discovery filters.
   preferredLocations: []
   roleFamilies: []
   remotePreference: any
@@ -15,8 +15,8 @@ discovery:
   location: Germany
   radiusKm: 0
   remotePreference: any
-  seniority: []
-  language: []
+  workingLanguage: German
+  otherLanguages: [] # Example entry: { language: Spanish, requirement: Preferred }
   postingAgeDays: 30
   limits:
     perRun: 25

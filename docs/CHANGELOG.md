@@ -1,3 +1,10 @@
+## v0.4.0
+
+- Consolidated the local workflow into Search → Review → Tailor → Apply with audited Interested/Skip decisions and manual application tracking.
+- Added explicit primary working-language and additional-language preference fields.
+- Added compact deterministic CV content selection and one-page ATS-safe CV rendering.
+- Deferred Personio coverage, stricter Germany/authorization filtering, deterministic role relevance, and web-discovery reliability to V0.5.
+
 # Changelog
 
 ## v0.2.0
