@@ -6,7 +6,7 @@
 
 `npm run db:migrate` creates/upgrades the SQLite database without deleting it.
 
-`cp config/search.example.yaml config/search.yaml` and enable public Greenhouse/Lever boards, then run `npm run discover`.
+`cp config/search.example.yaml config/search.yaml` and enable public Greenhouse/Lever boards or explicitly configured Personio sources, then run `npm run discover`.
 
 `npm run export -- xlsx` (or `csv`) writes a portable export under `exports/`.
 

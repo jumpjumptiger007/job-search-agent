@@ -1,4 +1,4 @@
-# Local Job Search Automation v0.4.0
+# Local Job Search Automation v0.5.0 (unreleased)
 
 Local-only, single-user job discovery, scoring, application-material preparation, and status tracking. It never submits an application.
 
@@ -15,3 +15,5 @@ Codex or Claude Code can be used externally to maintain the repository, run comm
 No private candidate information, runtime database, job captures, exports, or generated materials is tracked in Git.
 
 See [COMMANDS.md](COMMANDS.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+Discovery can also use explicitly configured public Personio career sources. Germany-based filtering rejects only clear incompatible location or work-authorisation evidence; ambiguous listings remain for review.

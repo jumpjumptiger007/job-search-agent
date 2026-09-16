@@ -15,3 +15,7 @@ V0.3 accepts ordinary role, location, work-model, language, age, and per-run-lim
 ## V0.4 workflow
 
 Bounded web discovery uses Bing HTML results because DuckDuckGo's HTML endpoint returned an anti-bot challenge in local validation; it remains a shallow discovery signal, not a platform scraper.
+
+## V0.5 discovery quality
+
+Explicit public Personio career sources are supported alongside existing sources. For Germany-based searches, only clear incompatible geography, foreign-residency, or work-authorisation requirements are rejected; compatible and ambiguous jobs remain for human Review. Role-family filtering is title-led and does not admit unrelated roles solely because a generic family term appears in their description.
