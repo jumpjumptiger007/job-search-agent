@@ -1,6 +1,6 @@
 # Architecture
 
-Next.js App Router provides a local dashboard and route handlers. SQLite is the structured source of truth, initialized through additive schema setup in `lib/db.ts`; existing files are never recreated or removed. The filesystem holds inspectable job folders and generated application materials.
+Next.js App Router provides a local dashboard and route handlers. SQLite is the structured source of truth, initialized through additive schema setup in `lib/db.ts`; existing files are never recreated or removed. The filesystem holds inspectable job folders and generated application materials. V0.2 ranks existing factual profile skills and experience bullets against each captured JD before material generation.
 
 `lib/discovery.ts` defines discovery adapters. V0.1 implements public Greenhouse and Lever JSON endpoints and records failures without bypassing blocks. Scoring, filtering, deduplication, material selection, and state transitions are deterministic local code driven by local configuration and factual candidate data.
 

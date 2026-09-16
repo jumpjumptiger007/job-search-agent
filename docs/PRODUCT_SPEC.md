@@ -6,6 +6,4 @@ Codex or Claude Code may be used externally to maintain the repository, run comm
 
 The practical workflow is discover → deduplicate/canonicalize → score → tailor materials → human applies → track status. V0.1 discovers public ATS listings, assigns immutable sequential job IDs after deterministic deduplication, captures original descriptions locally, and supports local review/export. Automation states (`DISCOVERED`, `ANALYZED`, `MATERIAL_GENERATED`) remain separate from human review (`MATERIAL_APPROVED`) and application state (`READY_TO_APPLY`, `APPLIED`). Candidate facts must never be fabricated, and applications must never be auto-submitted.
 
-Stable baseline: `main` at `5a1c46c` (Greenhouse entity-decoding regression fix), with `npm test` (9/9), typecheck, lint, and build verified; known non-failing Turbopack filesystem-tracing warnings remain.
-
-The next major capability is deterministic JD-based resume tailoring: select, prioritize, and reorder only factual profile content according to the captured JD, without requiring an LLM.
+V0.2 ranks and reorders only existing factual profile skills and experience bullets for each captured JD, while cover letters emphasize the top-ranked factual skills. No LLM, embeddings, external AI APIs, or provider credentials are used.

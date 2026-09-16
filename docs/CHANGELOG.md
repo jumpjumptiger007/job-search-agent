@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.0
+
+- Added deterministic JD-based ordering of factual resume skills and experience bullets, plus tailored cover-letter skill emphasis.
+- Removed unused external-provider environment placeholders.
+
 ## v0.1.0
 
 - Initial local-first dashboard, SQLite state, discovery adapters, permanent IDs, deduplication, job captures, audit trail, and CSV/XLSX exports.

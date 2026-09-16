@@ -1,4 +1,4 @@
-# Local Job Search Automation v0.1.0
+# Local Job Search Automation v0.2.0
 
 Local-only, single-user job discovery, scoring, application-material preparation, and status tracking. It never submits an application.
 
