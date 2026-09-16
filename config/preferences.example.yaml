@@ -9,3 +9,14 @@ hardFilters:
   excludedIndustries: []
   requiredLanguages: []
   unacceptableLocations: []
+
+discovery:
+  roleFamilies: []
+  location: Germany
+  radiusKm: 0
+  remotePreference: any
+  seniority: []
+  language: []
+  postingAgeDays: 30
+  limits:
+    perRun: 25

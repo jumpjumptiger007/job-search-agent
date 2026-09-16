@@ -6,5 +6,12 @@ providers:
   - type: lever
     company: example-company-token
     enabled: false
-# Broad web search is optional; configure credentials in .env, never here.
-rateLimitMs: 1000
+bundesagentur:
+  enabled: false
+  limit: 25
+# Shallow, bounded discovery only. No platform-specific scraping.
+webSearch:
+  enabled: false
+  maxQueries: 3
+  maxRawCandidates: 30
+  maxProcessedCandidates: 15
