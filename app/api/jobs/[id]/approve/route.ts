@@ -1,3 +1,3 @@
-import { NextResponse } from "next/server"; import { db } from "@/lib/db";
+import { NextResponse } from "next/server";
 export const runtime="nodejs";
-export async function POST(_:Request,{params}:{params:Promise<{id:string}>}){const {id}=await params;const d=db(),j=d.prepare("SELECT * FROM jobs WHERE job_id=?").get(id) as any;if(!j)return new NextResponse("Not found",{status:404});if(j.material_status!=="READY")return NextResponse.redirect(new URL(`/jobs/${id}`,"http://localhost:3000"),303);d.prepare("UPDATE jobs SET review_status='APPROVED',status='MATERIAL_APPROVED' WHERE id=?").run(j.id);d.prepare("INSERT INTO audit_events(job_id,action) VALUES(?,?)").run(j.id,"MATERIAL_APPROVED");return NextResponse.redirect(new URL(`/jobs/${id}`,"http://localhost:3000"),303)}
+export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){const {id}=await params;return NextResponse.redirect(new URL(`/jobs/${id}`,req.url),303)}

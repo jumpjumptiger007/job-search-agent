@@ -4,11 +4,14 @@ This is a local-only, single-user personal job-search automation tool, not a Saa
 
 Codex or Claude Code may be used externally to maintain the repository, run commands, inspect results, or implement changes. The application itself must remain independently runnable as deterministic local software.
 
-The practical workflow is discover → deduplicate/canonicalize → score → tailor materials → human applies → track status. V0.1 discovers public ATS listings, assigns immutable sequential job IDs after deterministic deduplication, captures original descriptions locally, and supports local review/export. Automation states (`DISCOVERED`, `ANALYZED`, `MATERIAL_GENERATED`) remain separate from human review (`MATERIAL_APPROVED`) and application state (`READY_TO_APPLY`, `APPLIED`). Candidate facts must never be fabricated, and applications must never be auto-submitted.
+The practical workflow is Search → Review → Tailor → Apply. Automation states (`DISCOVERED`, `ANALYZED`, `MATERIAL_GENERATED`) remain separate from human review (`PENDING`, `INTERESTED`, `SKIPPED`) and manual application state (`READY_TO_APPLY`, `APPLIED`). Candidate facts must never be fabricated, and applications must never be auto-submitted.
 
 V0.2 ranks and reorders only existing factual profile skills and experience bullets for each captured JD, while cover letters emphasize the top-ranked factual skills. No LLM, embeddings, external AI APIs, or provider credentials are used.
 
 
 V0.3 accepts ordinary role, location, work-model, language, age, and per-run-limit preferences. It may query Bundesagentur für Arbeit and bounded web results; third-party platforms are discovery signals only. It keeps reusable official-source knowledge locally, prefers an official careers/ATS URL when a shallow resolution finds one, and stops after deterministic filtering, deduplication, and optional scoring for human review. Material generation remains a deliberate human action.
+
+
+## V0.4 workflow
 
 Bounded web discovery uses Bing HTML results because DuckDuckGo's HTML endpoint returned an anti-bot challenge in local validation; it remains a shallow discovery signal, not a platform scraper.
