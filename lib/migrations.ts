@@ -42,5 +42,6 @@ export function migrate(db: Database.Database) {
       migration.apply(db);
       db.prepare("INSERT INTO schema_migrations(version, applied_at) VALUES(?, CURRENT_TIMESTAMP)").run(migration.version);
     }
+    db.exec("UPDATE jobs SET review_status = CASE review_status WHEN 'APPROVED' THEN 'INTERESTED' WHEN 'REVISE' THEN 'PENDING' WHEN 'REJECTED' THEN 'SKIPPED' ELSE review_status END, skipped = CASE WHEN review_status = 'REJECTED' THEN 1 ELSE skipped END");
   })();
 }
