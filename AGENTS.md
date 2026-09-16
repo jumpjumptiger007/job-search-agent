@@ -6,6 +6,8 @@ Codex and Claude Code are external development/operator tools only. They may edi
 
 Never auto-submit or click final application submission controls. Preserve human-owned decisions, never fabricate candidate facts, and keep all private candidate/job/runtime artifacts out of Git. The practical workflow is discover → deduplicate/canonicalize → score → tailor materials → human applies → track status. Schema evolution must be additive and migration-safe.
 
+Temporary test or acceptance data created by Codex or automation must be cleaned up after validation. Cleanup may delete only artifacts created by that specific test run; never delete real user profile/CV files, historical job data, production-generated materials, or other user-owned runtime data unless explicitly instructed. Keep all private/runtime data git-ignored and out of commits.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
