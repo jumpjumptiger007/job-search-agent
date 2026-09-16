@@ -18,9 +18,20 @@ describe("V0.5 Personio discovery",()=>{
     try {const [found]=await new PersonioAdapter("acme").discover();expect(requested).toBe("https://acme.jobs.personio.com/api/v1/recruiting/positions?language=en");expect(found).toMatchObject({company:"acme",title:"Product Manager",location:"Berlin, Germany",url:"https://acme.jobs.personio.com/job/42",ats:"Personio",externalId:"personio:acme:42",description:"Build products"});recordSource(found);const first=ingest(found),second=ingest(found);expect(second.created).toBe(false);expect(db().prepare("SELECT identity,tenant FROM source_registry").all()).toEqual([{identity:"personio:acme",tenant:"acme"}]);expect(first.job.external_id).toBe("personio:acme:42");} finally {globalThis.fetch=original;}
   });
 
+  it("accepts supported Personio URL forms and rejects non-Personio hosts",async()=>{
+    const original=globalThis.fetch;let requested="";
+    globalThis.fetch=async input=>{requested=String(input);return new Response(JSON.stringify({data:[{id:"de-1",name:"Product Manager"}]}));};
+    try {const [found]=await new PersonioAdapter("https://ACME.jobs.personio.de/careers",undefined,"de").discover();expect(requested).toBe("https://acme.jobs.personio.de/api/v1/recruiting/positions?language=de");expect(found.externalId).toBe("personio:acme:de-1");expect(()=>new PersonioAdapter("https://acme.jobs.personio.com.example")).toThrow("Personio source");} finally {globalThis.fetch=original;}
+  });
+
   it("isolates a Personio provider failure from other configured providers",async()=>{
     const cwd=process.cwd(),dir=fs.mkdtempSync(path.join("/private/tmp","v05-personio-run-")),original=globalThis.fetch;
     try {fs.mkdirSync(path.join(dir,"config"));fs.writeFileSync(path.join(dir,"config/preferences.yaml"),"discovery:\n  roleFamilies: [Product Management]\n  location: Germany\n");fs.writeFileSync(path.join(dir,"config/search.yaml"),"providers:\n  - type: personio\n    source: broken\n    enabled: true\n  - type: greenhouse\n    board: acme\n    enabled: true\n");process.chdir(dir);globalThis.fetch=async input=>String(input).includes("broken.jobs.personio")?new Response("unavailable",{status:503}):new Response(JSON.stringify({jobs:[{id:1,title:"Product Manager",absolute_url:"https://boards.greenhouse.io/acme/jobs/1",content:"Product role",location:{name:"Berlin, Germany"}}]}));const result=await runDiscovery("config/search.yaml");expect(result).toMatchObject({configured:2,failures:1,newJobs:1,seen:1});expect(result.errors[0]).toContain("Personio returned 503");} finally {globalThis.fetch=original;process.chdir(cwd);fs.rmSync(dir,{recursive:true,force:true});}
+  });
+
+  it("records malformed Personio configuration without blocking other providers",async()=>{
+    const cwd=process.cwd(),dir=fs.mkdtempSync(path.join("/private/tmp","v05-personio-config-")),original=globalThis.fetch;
+    try {fs.mkdirSync(path.join(dir,"config"));fs.writeFileSync(path.join(dir,"config/preferences.yaml"),"discovery:\n  roleFamilies: [Product Management]\n");fs.writeFileSync(path.join(dir,"config/search.yaml"),"providers:\n  - type: personio\n    source: https://not-personio.example\n    enabled: true\n  - type: greenhouse\n    board: acme\n    enabled: true\n");process.chdir(dir);globalThis.fetch=async()=>new Response(JSON.stringify({jobs:[{id:1,title:"Product Manager",absolute_url:"https://boards.greenhouse.io/acme/jobs/1",content:"Product role"}]}));const result=await runDiscovery("config/search.yaml");expect(result).toMatchObject({configured:1,failures:1,newJobs:1,seen:1});expect(result.errors[0]).toContain("Personio configuration");} finally {globalThis.fetch=original;process.chdir(cwd);fs.rmSync(dir,{recursive:true,force:true});}
   });
 });
 
@@ -40,15 +51,20 @@ describe("V0.5 Germany eligibility",()=>{
     ["UK-only","Remote","UK-only role."],
     ["Switzerland-only","Remote","Switzerland-only role."],
     ["foreign residency","Remote","Applicants must reside in France."],
+    ["plural foreign residency","Remote","Applicants must be residents in France."],
+    ["required foreign residency","Remote","Residency in France is required."],
     ["foreign authorization","Remote","Candidates must be authorized to work in Canada."],
     ["existing foreign authorization","Remote","Applicants must have existing work authorization in Canada."],
+    ["required foreign authorization","Remote","Existing work authorization in the UK is required."],
   ])("rejects explicit incompatible %s",(_case,location,description)=>expect(isGermanyEligible(job("Product Manager",location,description))).toBe(false));
+  it("retains foreign country mentions that are not requirements",()=>{expect(isGermanyEligible(job("Product Manager","Remote","We support customers in Canada and Europe."))).toBe(true);expect(isGermanyEligible(job("Product Manager","Remote","You will be authorized to work in Canada after onboarding."))).toBe(true);});
   it("uses the hardened check through Germany preferences",()=>expect(matchesPreferences(job("Product Manager","Berlin, Germany",""),{location:"Germany"})).toBe(true));
 });
 
 describe("V0.5 role relevance",()=>{
   const families=["Product Management"];
   it("keeps a clearly relevant title",()=>expect(matchesRoleFamilies(job("Product Manager","Berlin",""),families)).toBe(true));
+  it("keeps adjacent title-led matches despite punctuation or plural forms",()=>{expect(matchesRoleFamilies(job("Product Owner","Berlin",""),families)).toBe(true);expect(matchesRoleFamilies(job("Product-Manager","Berlin",""),families)).toBe(true);});
   it("does not qualify generic management text in an unrelated JD",()=>expect(matchesRoleFamilies(job("Account Manager","Berlin","Experience with project management."),families)).toBe(false));
   it("does not let a generic management family qualify a JD by itself",()=>expect(matchesRoleFamilies(job("Account Manager","Berlin","Management experience required."),["Management"])).toBe(false));
   it("requires a title-led senior operations match when operations is the only family",()=>{expect(matchesRoleFamilies(job("Operations Associate","Berlin",""),["Operations"])).toBe(false);expect(matchesRoleFamilies(job("Operations Manager","Berlin",""),["Operations"])).toBe(true);});
