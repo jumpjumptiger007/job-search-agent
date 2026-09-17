@@ -8,7 +8,7 @@ providers:
     enabled: false
   # Explicit public Personio career source only; no tenant discovery or crawling.
   - type: personio
-    source: example-company-token
+    source: https://example-company-token.jobs.personio.de
     language: en
     enabled: false
     limit: 25

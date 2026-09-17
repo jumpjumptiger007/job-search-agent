@@ -16,4 +16,4 @@ No private candidate information, runtime database, job captures, exports, or ge
 
 See [COMMANDS.md](COMMANDS.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-Discovery can also use explicitly configured public Personio career sources. Germany-based filtering rejects only clear incompatible location or work-authorisation evidence; ambiguous listings remain for review.
+Discovery can also use explicitly configured public Personio career-site URLs (for example, `https://company.jobs.personio.de`). Germany-based filtering rejects clear foreign-local structured locations while retaining explicit EU/Europe/worldwide, mixed, and ambiguous listings for review.

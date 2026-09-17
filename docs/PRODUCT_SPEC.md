@@ -20,4 +20,4 @@ Bounded web discovery uses Bing HTML results because DuckDuckGo's HTML endpoint 
 
 ## V0.5 discovery quality
 
-Explicit public Personio career sources are supported alongside existing sources. For Germany-based searches, only clear incompatible geography, foreign-residency, or work-authorisation requirements are rejected; compatible and ambiguous jobs remain for human Review. Role-family filtering is title-led and does not admit unrelated roles solely because a generic family term appears in their description.
+Explicit public Personio career-site URLs are supported alongside existing sources. For Germany-based searches, clear foreign-local structured locations are rejected; Germany, explicit EU/Europe/worldwide, mixed, and ambiguous locations remain for human Review. No visa, citizenship, geocoding, or global work-authorisation inference is performed. Role-family filtering is title-led and does not admit unrelated roles solely because a generic family term appears in their description.
