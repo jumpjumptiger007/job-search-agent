@@ -9,6 +9,10 @@ import { scoreJob } from "./scoring";
 
 type Profile = { name: string; email?: string; phone?: string; location?: string; summary?: string; skills?: string[]; competencies?: Record<string,string[]>; experience?: { employer: string; title: string; dates?: string; bullets?: string[] }[]; education?: string[]; roleFamilies?: string[]; preferredLocations?: string[]; languages?: string[] };
 const root = () => process.env.JOB_AGENT_STORAGE_ROOT || process.cwd();
+const artifactPaths={resumePdf:["resume","resume.pdf"],resumeDocx:["resume","resume.docx"],letterPdf:["cover_letter","cover_letter.pdf"],letterDocx:["cover_letter","cover_letter.docx"],packagePdf:["package","application_package.pdf"]} as const;
+const artifactLabels={resumePdf:"Resume PDF",resumeDocx:"Resume DOCX",letterPdf:"Cover letter PDF",letterDocx:"Cover letter DOCX",packagePdf:"Application package PDF"} as const;
+export type MaterialArtifact=keyof typeof artifactPaths;
+export function materialArtifacts(job:any){return (Object.keys(artifactPaths) as MaterialArtifact[]).flatMap(key=>{const file=path.join(root(),job.folder_path,...artifactPaths[key]);return fs.existsSync(file)&&fs.statSync(file).isFile()?[{key,label:artifactLabels[key],file}]:[];});}
 const profilePath = () => path.join(root(), "profile", "profile.yaml");
 export function loadProfile(): Profile | undefined { if (!fs.existsSync(profilePath())) return undefined; const p=YAML.parse(fs.readFileSync(profilePath(), "utf8")); return p?.name ? p as Profile : undefined; }
 const conciseSummary=(text:string,limit=420)=>{const clean=text.trim();if(clean.length<=limit)return clean;const cut=clean.slice(0,limit);return cut.slice(0,Math.max(cut.lastIndexOf(". ")+1,cut.lastIndexOf("! ")+1,cut.lastIndexOf("? ")+1))||clean.split(/\s+/).slice(0,55).join(" ");};

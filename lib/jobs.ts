@@ -18,6 +18,10 @@ export function ingest(job:DiscoveredJob) {
 }
 export function writeJobFiles(job:any){ const dir=path.join(storageRoot(),job.folder_path); fs.mkdirSync(dir,{recursive:true}); fs.writeFileSync(path.join(dir,"jd_original.md"),`# Captured job description\n\n- Source: ${job.canonical_source}\n- URL: ${job.canonical_url}\n- Captured: ${job.found_at}\n\n---\n\n${job.jd_original}`); fs.writeFileSync(path.join(dir,"job.json"),JSON.stringify({jobId:job.job_id,company:job.company,title:job.title,canonicalSource:job.canonical_source,url:job.canonical_url,ats:job.ats,postedAt:job.posted_at},null,2)); fs.writeFileSync(path.join(dir,"analysis.md"),job.score_explanation||"Analysis pending. Add a factual candidate profile and scoring configuration.\n"); }
 export function listJobs(){return db().prepare("SELECT * FROM jobs ORDER BY priority DESC, found_at DESC").all() as any[];}
+export function workflowQueues(jobs=listJobs()){
+ const closed=(j:any)=>j.review_status==="SKIPPED"||["REJECTED","WITHDRAWN"].includes(j.application_status),active=(j:any)=>["APPLIED","INTERVIEW","OFFER"].includes(j.application_status);
+ return {review:jobs.filter(j=>j.review_status==="PENDING"&&!closed(j)),tailor:jobs.filter(j=>j.review_status==="INTERESTED"&&j.material_status!=="READY"&&!active(j)&&!closed(j)),materialsReady:jobs.filter(j=>j.review_status==="INTERESTED"&&j.material_status==="READY"&&j.application_status==="NOT_APPLIED"),readyToApply:jobs.filter(j=>j.application_status==="READY_TO_APPLY"&&!closed(j)),active:jobs.filter(active),historical:jobs.filter(closed)};
+}
 export function getJob(id:string){return db().prepare("SELECT * FROM jobs WHERE job_id=?").get(id) as any;}
 export function setReviewStatus(jobId:string, reviewStatus:ReviewStatus) {
  const d=db(), job=getJob(jobId); if(!job) throw new Error("Job not found");
