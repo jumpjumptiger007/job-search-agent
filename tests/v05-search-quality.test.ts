@@ -68,6 +68,8 @@ describe("V0.5 Germany eligibility",()=>{
     ["foreign authorization","Remote","Candidates must be authorized to work in Canada."],
     ["existing foreign authorization","Remote","Applicants must have existing work authorization in Canada."],
     ["required foreign authorization","Remote","Existing work authorization in the UK is required."],
+    ["legal foreign authorization","Remote","Applicants must be legally authorized to work in Canada."],
+    ["unrestricted foreign authorization","Remote","Applicants must have unrestricted work authorization in Canada."],
     ["remote foreign location","Remote, Canada",""],
     ["Japan structured location","Tokyo, Japan",""],
     ["Australia structured location","Sydney, Australia • Melbourne, Australia",""],
@@ -76,7 +78,7 @@ describe("V0.5 Germany eligibility",()=>{
     ["non-European region","APAC",""],
     ["Europe excluding Germany","Remote","Remote in Europe excluding Germany."],
   ])("rejects explicit incompatible %s",(_case,location,description)=>expect(isGermanyEligible(job("Product Manager",location,description))).toBe(false));
-  it("rejects foreign-local city/country locations while retaining mixed and ambiguous listings",()=>{expect(isGermanyEligible(job("Product Manager","Paris, France",""))).toBe(false);expect(isGermanyEligible(job("Product Manager","Amsterdam, Netherlands",""))).toBe(false);expect(isGermanyEligible(job("Product Manager","Remote","We support customers in Canada and Europe."))).toBe(true);expect(isGermanyEligible(job("Product Manager","Remote","You will be authorized to work in Canada after onboarding."))).toBe(true);expect(isGermanyEligible(job("Product Manager","Germany / Switzerland",""))).toBe(true);expect(isGermanyEligible(job("Product Manager","UK or Germany",""))).toBe(true);});
+  it("rejects all-foreign multi-location strings while retaining genuine mixed and ambiguous listings",()=>{for(const location of ["France / Netherlands","Paris, France / London, UK","Paris, France or Amsterdam, Netherlands","Remote, US / Canada","Singapore / Australia"])expect(isGermanyEligible(job("Product Manager",location,""))).toBe(false);expect(isGermanyEligible(job("Product Manager","Germany / Switzerland",""))).toBe(true);expect(isGermanyEligible(job("Product Manager","UK or Germany",""))).toBe(true);expect(isGermanyEligible(job("Product Manager","Remote / France",""))).toBe(true);expect(isGermanyEligible(job("Product Manager","Remote","We support customers in Canada and Europe."))).toBe(true);expect(isGermanyEligible(job("Product Manager","Remote","You will be authorized to work in Canada after onboarding."))).toBe(true);});
   it("uses the hardened check through Germany preferences",()=>expect(matchesPreferences(job("Product Manager","Berlin, Germany",""),{location:"Germany"})).toBe(true));
 });
 

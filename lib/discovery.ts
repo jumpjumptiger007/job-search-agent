@@ -47,10 +47,11 @@ const countryNames=new Set(Array.from({length:26},(_,a)=>Array.from({length:26},
 const foreignResidency=/(?:must|need to|are required to|applicants must)\s+(?:be\s+)?(?:a\s+)?(?:residents?|reside|live|living|residing|based|located)\s+(?:in|within)\s+([^.;,\n]+)/i;
 const requiredForeignResidency=/(?:residency|residence|resident status)\s+(?:in|within)\s+([^.;,\n]+?)\s+(?:is\s+)?required/i;
 const explicitForeignRoleLocation=/(?:position|role|job|work location)\s+(?:is\s+)?(?:based|located)\s+in\s+([^.;,\n]+)/i;
-const foreignAuthorization=/(?:must|need to|are required to|applicants must)\s+(?:be\s+)?(?:authorized|eligible|have (?:the )?right)\s+(?:to )?work\s+(?:in\s+)?([^.;,\n]+)/i;
-const existingForeignAuthorization=/(?:must|need to|are required to|applicants must)\s+(?:have|hold|possess)\s+(?:(?:existing|valid|current)\s+)?(?:work authorization|work authorisation|work permit|right to work)\s+(?:in|for)\s+([^.;,\n]+)/i;
+const foreignAuthorization=/(?:must|need to|are required to|applicants must)\s+(?:be\s+)?(?:(?:legally\s+)?authorized|eligible|have (?:the )?right)\s+(?:to )?work\s+(?:in\s+)?([^.;,\n]+)/i;
+const existingForeignAuthorization=/(?:must|need to|are required to|applicants must)\s+(?:have|hold|possess)\s+(?:(?:existing|valid|current|unrestricted)\s+)?(?:work authorization|work authorisation|work permit|right to work)\s+(?:in|for)\s+([^.;,\n]+)/i;
 const requiredForeignAuthorization=/(?:(?:existing|valid|current)\s+)?(?:work authorization|work authorisation|work permit|right to work)\s+(?:in|for)\s+([^.;,\n]+?)\s+(?:is\s+)?required/i;
 const clearlyForeignRequirement=(text:string,pattern:RegExp)=>{const match=text.match(pattern),target=match?.[1]?.trim()||"";return Boolean(target&&!/^(?:your|home|any|another|the country)\b/i.test(target)&&!compatibleRegion(target)&&target.length<45);};
+const clearlyForeignStructuredLocation=(value:string)=>Boolean(value&&(!compatibleRegion(value))&&(countryNames.has(value.toLowerCase())||incompatibleStructuredRegion.test(value)||/,/.test(value)));
 
 /** Rejects only explicit location, residency, or work-authorisation contradictions for Germany-based searches. */
 export function isGermanyEligible(job:DiscoveredJob){
@@ -61,6 +62,8 @@ export function isGermanyEligible(job:DiscoveredJob){
   if(normalizedLocation&&/\b[a-z][a-z -]*-only\b/i.test(normalizedLocation)&&!compatibleRegion(normalizedLocation)&&!/^\s*(?:remote|hybrid)-only\b/i.test(normalizedLocation))return false;
   if(normalizedLocation&&countryNames.has(normalizedLocation.toLowerCase())&&!compatibleRegion(normalizedLocation))return false;
   if(normalizedLocation&&incompatibleStructuredRegion.test(normalizedLocation)&&!compatibleRegion(normalizedLocation))return false;
+  const locationParts=normalizedLocation.split(/\s*(?:\/|\bor\b)\s*/i).filter(Boolean);
+  if(locationParts.length>1&&locationParts.every(clearlyForeignStructuredLocation))return false;
   if(normalizedLocation&&/,/.test(normalizedLocation)&&!compatibleRegion(normalizedLocation)&&!/multiple|global|world|\bor\b|\//i.test(normalizedLocation))return false;
   return true;
 }
