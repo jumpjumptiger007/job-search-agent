@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.2
+
+- Updated Bundesagentur für Arbeit discovery to the working v6 Jobsuche endpoint and mapped its current response schema while preserving existing filtering, identity, and provider-error behavior.
+
 ## v0.6.1
 
 - Rejected clear foreign structured locations such as “Anywhere in the United States” and explicit “currently authorized to work” requirements in Germany-focused discovery.
