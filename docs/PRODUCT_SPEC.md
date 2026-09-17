@@ -2,6 +2,8 @@
 
 This is a local-only, single-user personal job-search automation tool, not a SaaS product and not an autonomous AI agent. Prefer small practical changes (YAGNI); authentication, cloud infrastructure, multi-user permissions, review bureaucracy, runtime LLM dependencies, and speculative abstractions are out of scope.
 
+It is a Germany-focused, local, single-user personal job-search workflow. Discovery and filtering should optimize for jobs realistically relevant to a Germany-based candidate rather than global job-search coverage.
+
 Codex or Claude Code may be used externally to maintain the repository, run commands, inspect results, or implement changes. The application itself must remain independently runnable as deterministic local software.
 
 The practical workflow is Search → Review → Tailor → Apply. Automation states (`DISCOVERED`, `ANALYZED`, `MATERIAL_GENERATED`) remain separate from human review (`PENDING`, `INTERESTED`, `SKIPPED`) and manual application state (`READY_TO_APPLY`, `APPLIED`). Candidate facts must never be fabricated, and applications must never be auto-submitted.

@@ -14,24 +14,24 @@ const job=(title="Product Manager",location?:string,description="")=>({company:"
 describe("V0.5 Personio discovery",()=>{
   it("normalizes configured Personio positions with stable identities",async()=>{
     const original=globalThis.fetch;let requested="";
-    globalThis.fetch=async input=>{requested=String(input);return new Response(JSON.stringify({data:[{id:42,name:"Product Manager",description:"<p>Build products</p>",office:{name:"Berlin, Germany"},createdAt:"2026-01-01"}]}));};
-    try {const [found]=await new PersonioAdapter("acme").discover();expect(requested).toBe("https://acme.jobs.personio.com/api/v1/recruiting/positions?language=en");expect(found).toMatchObject({company:"acme",title:"Product Manager",location:"Berlin, Germany",url:"https://acme.jobs.personio.com/job/42",ats:"Personio",externalId:"personio:acme:42",description:"Build products"});recordSource(found);const first=ingest(found),second=ingest(found);expect(second.created).toBe(false);expect(db().prepare("SELECT identity,tenant FROM source_registry").all()).toEqual([{identity:"personio:acme",tenant:"acme"}]);expect(first.job.external_id).toBe("personio:acme:42");} finally {globalThis.fetch=original;}
+    globalThis.fetch=async input=>{requested=String(input);return new Response("<positions><position><id>42</id><name>Product Manager</name><office>Berlin, Germany</office><jobDescriptions><![CDATA[<p>Build products</p>]]></jobDescriptions></position></positions>");};
+    try {const [found]=await new PersonioAdapter("acme").discover();expect(requested).toBe("https://acme.jobs.personio.com/xml?language=en");expect(found).toMatchObject({company:"acme",title:"Product Manager",location:"Berlin, Germany",url:"https://acme.jobs.personio.com/job/42",ats:"Personio",externalId:"personio:acme:42",description:"Build products"});recordSource(found);const first=ingest(found),second=ingest(found);expect(second.created).toBe(false);expect(db().prepare("SELECT identity,tenant FROM source_registry").all()).toEqual([{identity:"personio:acme",tenant:"acme"}]);expect(first.job.external_id).toBe("personio:acme:42");} finally {globalThis.fetch=original;}
   });
 
   it("accepts supported Personio URL forms and rejects non-Personio hosts",async()=>{
     const original=globalThis.fetch;let requested="";
-    globalThis.fetch=async input=>{requested=String(input);return new Response(JSON.stringify({data:[{id:"de-1",name:"Product Manager"}]}));};
-    try {const [found]=await new PersonioAdapter("https://ACME.jobs.personio.de/careers",undefined,"de").discover();expect(requested).toBe("https://acme.jobs.personio.de/api/v1/recruiting/positions?language=de");expect(found.externalId).toBe("personio:acme:de-1");expect(()=>new PersonioAdapter("https://acme.jobs.personio.com.example")).toThrow("Personio source");} finally {globalThis.fetch=original;}
+    globalThis.fetch=async input=>{requested=String(input);return new Response("<positions><position><id>de-1</id><name>Product Manager</name></position></positions>");};
+    try {const [found]=await new PersonioAdapter("https://ACME.jobs.personio.de/careers",undefined,"de").discover();expect(requested).toBe("https://acme.jobs.personio.de/xml?language=de");expect(found.externalId).toBe("personio:acme:de-1");expect(()=>new PersonioAdapter("https://acme.jobs.personio.com.example")).toThrow("Personio source");} finally {globalThis.fetch=original;}
   });
 
   it("skips malformed records and keeps Personio job URLs on the configured source",async()=>{
     const original=globalThis.fetch;
-    globalThis.fetch=async()=>new Response(JSON.stringify({data:[null,{name:"Missing ID"},{id:"external",name:"External URL",url:"https://not-personio.example/job"},{id:"broken",name:"Broken URL",url:"https://["}]}));
+    globalThis.fetch=async()=>new Response("<positions><position><name>Missing ID</name></position><position><id>external</id><name>External</name></position><position><id>broken</id><name>Broken</name></position></positions>");
     try {const jobs=await new PersonioAdapter("acme").discover();expect(jobs).toHaveLength(2);expect(jobs.map(found=>found.url)).toEqual(["https://acme.jobs.personio.com/job/external","https://acme.jobs.personio.com/job/broken"]);} finally {globalThis.fetch=original;}
   });
 
   it("treats empty or malformed position collections as no results",async()=>{
-    const original=globalThis.fetch;globalThis.fetch=async()=>new Response(JSON.stringify({data:{}}));
+    const original=globalThis.fetch;globalThis.fetch=async()=>new Response("<positions></positions>");
     try {await expect(new PersonioAdapter("acme").discover()).resolves.toEqual([]);} finally {globalThis.fetch=original;}
   });
 
