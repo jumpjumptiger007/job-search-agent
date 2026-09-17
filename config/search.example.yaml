@@ -6,6 +6,12 @@ providers:
   - type: lever
     company: example-company-token
     enabled: false
+  # Explicit public Personio career source only; no tenant discovery or crawling.
+  - type: personio
+    source: https://example-company-token.jobs.personio.de
+    language: en
+    enabled: false
+    limit: 25
 bundesagentur:
   enabled: false
   limit: 25

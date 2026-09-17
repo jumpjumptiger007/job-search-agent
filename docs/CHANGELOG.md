@@ -1,11 +1,17 @@
+# Changelog
+
+## v0.5.0 (unreleased)
+
+- Added deterministic discovery from explicitly configured public Personio career sources, including stable tenant/job identities and provider failure isolation.
+- Hardened Germany-based filtering to reject only clear incompatible location, residency, or work-authorisation evidence.
+- Made role-family filtering title-led so generic management and operations text in a job description does not independently qualify unrelated work.
+
 ## v0.4.0
 
 - Consolidated the local workflow into Search → Review → Tailor → Apply with audited Interested/Skip decisions and manual application tracking.
 - Added explicit primary working-language and additional-language preference fields.
 - Added compact deterministic CV content selection and one-page ATS-safe CV rendering.
 - Deferred Personio coverage, stricter Germany/authorization filtering, deterministic role relevance, and web-discovery reliability to V0.5.
-
-# Changelog
 
 ## v0.2.0
 
