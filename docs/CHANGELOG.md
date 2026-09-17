@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.5.0 (unreleased)
+## v0.5.0
 
 - Added deterministic discovery from explicitly configured public Personio career sources, including stable tenant/job identities and provider failure isolation.
 - Hardened Germany-based filtering to reject only clear incompatible location, residency, or work-authorisation evidence.
