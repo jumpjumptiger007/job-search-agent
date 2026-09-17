@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.6.1
+
+- Rejected clear foreign structured locations such as “Anywhere in the United States” and explicit “currently authorized to work” requirements in Germany-focused discovery.
+- Retried one transient Web-search transport failure and persisted nullable per-run upstream, filtered, and accepted candidate counts for new discovery runs.
+
 ## v0.6.0
 
 - Added state-aware dashboard queues for review, tailoring, materials-ready, manual application, active applications, and historical jobs.
