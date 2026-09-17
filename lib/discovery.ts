@@ -44,6 +44,7 @@ const compatibleRegion=(text:string)=>/germany|deutschland|european union|\beu\b
 const incompatibleStructuredRegion=/\b(?:apac|asia(?:[- ]pacific)?|americas|north america|middle east|africa)\b/i;
 const countryName=(code:string)=>{try{return new Intl.DisplayNames(["en"],{type:"region"}).of(code);}catch{return undefined;}};
 const countryNames=new Set(Array.from({length:26},(_,a)=>Array.from({length:26},(_,b)=>String.fromCharCode(65+a,65+b))).flatMap(codes=>codes.map(countryName)).filter((name):name is string=>Boolean(name&&name!=="Unknown Region"&&name.length>2)).map(name=>name.toLowerCase()));
+const foreignCountryAbbreviations=new Set(["us","uk","gb"]);
 const foreignResidency=/(?:must|need to|are required to|applicants must)\s+(?:be\s+)?(?:a\s+)?(?:residents?|reside|live|living|residing|based|located)\s+(?:in|within)\s+([^.;,\n]+)/i;
 const requiredForeignResidency=/(?:residency|residence|resident status)\s+(?:in|within)\s+([^.;,\n]+?)\s+(?:is\s+)?required/i;
 const explicitForeignRoleLocation=/(?:position|role|job|work location)\s+(?:is\s+)?(?:based|located)\s+in\s+([^.;,\n]+)/i;
@@ -51,7 +52,7 @@ const foreignAuthorization=/(?:must|need to|are required to|applicants must)\s+(
 const existingForeignAuthorization=/(?:must|need to|are required to|applicants must)\s+(?:have|hold|possess)\s+(?:(?:existing|valid|current|unrestricted)\s+)?(?:work authorization|work authorisation|work permit|right to work)\s+(?:in|for)\s+([^.;,\n]+)/i;
 const requiredForeignAuthorization=/(?:(?:existing|valid|current)\s+)?(?:work authorization|work authorisation|work permit|right to work)\s+(?:in|for)\s+([^.;,\n]+?)\s+(?:is\s+)?required/i;
 const clearlyForeignRequirement=(text:string,pattern:RegExp)=>{const match=text.match(pattern),target=match?.[1]?.trim()||"";return Boolean(target&&!/^(?:your|home|any|another|the country)\b/i.test(target)&&!compatibleRegion(target)&&target.length<45);};
-const clearlyForeignStructuredLocation=(value:string)=>Boolean(value&&(!compatibleRegion(value))&&(countryNames.has(value.toLowerCase())||incompatibleStructuredRegion.test(value)||/,/.test(value)));
+const clearlyForeignStructuredLocation=(value:string)=>Boolean(value&&(!compatibleRegion(value))&&(foreignCountryAbbreviations.has(value.toLowerCase())||countryNames.has(value.toLowerCase())||incompatibleStructuredRegion.test(value)||/,/.test(value)));
 
 /** Rejects only explicit location, residency, or work-authorisation contradictions for Germany-based searches. */
 export function isGermanyEligible(job:DiscoveredJob){
@@ -60,7 +61,7 @@ export function isGermanyEligible(job:DiscoveredJob){
   if(clearlyForeignRequirement(all,foreignResidency)||clearlyForeignRequirement(all,requiredForeignResidency)||clearlyForeignRequirement(all,explicitForeignRoleLocation)||clearlyForeignRequirement(all,foreignAuthorization)||clearlyForeignRequirement(all,existingForeignAuthorization)||clearlyForeignRequirement(all,requiredForeignAuthorization))return false;
   const normalizedLocation=location.trim();
   if(normalizedLocation&&/\b[a-z][a-z -]*-only\b/i.test(normalizedLocation)&&!compatibleRegion(normalizedLocation)&&!/^\s*(?:remote|hybrid)-only\b/i.test(normalizedLocation))return false;
-  if(normalizedLocation&&countryNames.has(normalizedLocation.toLowerCase())&&!compatibleRegion(normalizedLocation))return false;
+  if(normalizedLocation&&(foreignCountryAbbreviations.has(normalizedLocation.toLowerCase())||countryNames.has(normalizedLocation.toLowerCase()))&&!compatibleRegion(normalizedLocation))return false;
   if(normalizedLocation&&incompatibleStructuredRegion.test(normalizedLocation)&&!compatibleRegion(normalizedLocation))return false;
   const locationParts=normalizedLocation.split(/\s*(?:\/|\bor\b)\s*/i).filter(Boolean);
   if(locationParts.length>1&&locationParts.every(clearlyForeignStructuredLocation))return false;

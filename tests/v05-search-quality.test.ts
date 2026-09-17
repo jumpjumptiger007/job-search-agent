@@ -74,11 +74,14 @@ describe("V0.5 Germany eligibility",()=>{
     ["Japan structured location","Tokyo, Japan",""],
     ["Australia structured location","Sydney, Australia • Melbourne, Australia",""],
     ["Singapore country location","Singapore",""],
+    ["US country abbreviation","US",""],
+    ["UK country abbreviation","UK",""],
+    ["GB country abbreviation","GB",""],
     ["Singapore-only","Singapore-only",""],
     ["non-European region","APAC",""],
     ["Europe excluding Germany","Remote","Remote in Europe excluding Germany."],
   ])("rejects explicit incompatible %s",(_case,location,description)=>expect(isGermanyEligible(job("Product Manager",location,description))).toBe(false));
-  it("rejects all-foreign multi-location strings while retaining genuine mixed and ambiguous listings",()=>{for(const location of ["France / Netherlands","Paris, France / London, UK","Paris, France or Amsterdam, Netherlands","Remote, US / Canada","Singapore / Australia"])expect(isGermanyEligible(job("Product Manager",location,""))).toBe(false);expect(isGermanyEligible(job("Product Manager","Germany / Switzerland",""))).toBe(true);expect(isGermanyEligible(job("Product Manager","UK or Germany",""))).toBe(true);expect(isGermanyEligible(job("Product Manager","Remote / France",""))).toBe(true);expect(isGermanyEligible(job("Product Manager","Remote","We support customers in Canada and Europe."))).toBe(true);expect(isGermanyEligible(job("Product Manager","Remote","You will be authorized to work in Canada after onboarding."))).toBe(true);});
+  it("rejects all-foreign multi-location strings while retaining genuine mixed and ambiguous listings",()=>{for(const location of ["France / Netherlands","Paris, France / London, UK","Paris, France or Amsterdam, Netherlands","Remote, US / Canada","Singapore / Australia","US / Canada","UK / Canada","GB / Canada"])expect(isGermanyEligible(job("Product Manager",location,""))).toBe(false);expect(isGermanyEligible(job("Product Manager","Germany / Switzerland",""))).toBe(true);expect(isGermanyEligible(job("Product Manager","UK or Germany",""))).toBe(true);expect(isGermanyEligible(job("Product Manager","Remote / France",""))).toBe(true);expect(isGermanyEligible(job("Product Manager","Remote","We support customers in Canada and Europe."))).toBe(true);expect(isGermanyEligible(job("Product Manager","Remote","You will be authorized to work in Canada after onboarding."))).toBe(true);});
   it("uses the hardened check through Germany preferences",()=>expect(matchesPreferences(job("Product Manager","Berlin, Germany",""),{location:"Germany"})).toBe(true));
 });
 
