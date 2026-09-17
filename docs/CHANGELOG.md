@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.0
+
+- Added state-aware dashboard queues for review, tailoring, materials-ready, manual application, active applications, and historical jobs.
+- Added read-only local access to existing generated resume, cover-letter, and application-package files from each job detail page.
+- Preserved richer factual job-description text already available from bounded direct-careers/web resolution.
+
 ## v0.5.0
 
 - Added deterministic discovery from explicitly configured public Personio career sources, including stable tenant/job identities and provider failure isolation.

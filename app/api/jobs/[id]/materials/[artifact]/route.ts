@@ -1,0 +1,5 @@
+import fs from "node:fs"; import path from "node:path";
+import { getJob } from "@/lib/jobs"; import { materialArtifacts, type MaterialArtifact } from "@/lib/materials";
+export const runtime="nodejs"; export const dynamic="force-dynamic";
+const contentTypes:Record<MaterialArtifact,string>={resumePdf:"application/pdf",resumeDocx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",letterPdf:"application/pdf",letterDocx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",packagePdf:"application/pdf"};
+export async function GET(_req:Request,{params}:{params:Promise<{id:string;artifact:string}>}){const {id,artifact}=await params,job=getJob(id),key=artifact as MaterialArtifact;if(!job||!(key in contentTypes))return new Response("Not found",{status:404});const file=materialArtifacts(job).find(a=>a.key===key)?.file;if(!file)return new Response("Not found",{status:404});return new Response(fs.readFileSync(file),{headers:{"Content-Type":contentTypes[key],"Content-Disposition":`inline; filename="${path.basename(file)}"`}});}
