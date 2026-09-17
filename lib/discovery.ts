@@ -41,8 +41,8 @@ export function matchesRoleFamilies(job:DiscoveredJob, families:string[]){
 }
 
 const compatibleRegion=(text:string)=>/germany|deutschland|european union|\beu\b|europe|worldwide|work from anywhere|anywhere in the world/i.test(text);
-const incompatibleCountry=/united states|\bu\.?s\.?\b|\busa\b|canada|united kingdom|\bu\.?k\.?\b|\buk\b|switzerland/i;
-const explicitCountry=/(?:united states|u\.?s\.?|usa|canada|united kingdom|u\.?k\.?|uk|switzerland)/i;
+// Germany-focused structured-location signals observed in public discovery; this is not legal eligibility logic.
+const incompatibleStructuredLocation=/united states|\bu\.?s\.?\b|\busa\b|canada|united kingdom|\bu\.?k\.?\b|\buk\b|switzerland|japan|australia|singapore|north america|asia(?: pacific)?|\bapac\b|oceania/i;
 const foreignResidency=/(?:must|need to|are required to|applicants must)\s+(?:be\s+)?(?:a\s+)?(?:residents?|reside|live|living|residing|based|located)\s+(?:in|within)\s+([^.;,\n]+)/i;
 const requiredForeignResidency=/(?:residency|residence|resident status)\s+(?:in|within)\s+([^.;,\n]+?)\s+(?:is\s+)?required/i;
 const explicitForeignRoleLocation=/(?:position|role|job|work location)\s+(?:is\s+)?(?:based|located)\s+in\s+([^.;,\n]+)/i;
@@ -58,7 +58,7 @@ export function isGermanyEligible(job:DiscoveredJob){
   if(/(?:united states|u\.?s\.?|usa|canada|united kingdom|u\.?k\.?|uk|switzerland)\s*(?:-| )?only/i.test(`${location}\n${all}`))return false;
   if(clearlyForeignRequirement(all,foreignResidency)||clearlyForeignRequirement(all,requiredForeignResidency)||clearlyForeignRequirement(all,explicitForeignRoleLocation)||clearlyForeignRequirement(all,foreignAuthorization)||clearlyForeignRequirement(all,existingForeignAuthorization)||clearlyForeignRequirement(all,requiredForeignAuthorization))return false;
   const normalizedLocation=location.trim();
-  if(normalizedLocation&&incompatibleCountry.test(normalizedLocation)&&!compatibleRegion(normalizedLocation)&&!/multiple|global|world/i.test(normalizedLocation)&&explicitCountry.test(normalizedLocation))return false;
+  if(normalizedLocation&&incompatibleStructuredLocation.test(normalizedLocation)&&!compatibleRegion(normalizedLocation)&&!/multiple|global|world/i.test(normalizedLocation))return false;
   return true;
 }
 

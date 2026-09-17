@@ -69,9 +69,13 @@ describe("V0.5 Germany eligibility",()=>{
     ["existing foreign authorization","Remote","Applicants must have existing work authorization in Canada."],
     ["required foreign authorization","Remote","Existing work authorization in the UK is required."],
     ["remote foreign location","Remote, Canada",""],
+    ["Japan structured location","Tokyo, Japan",""],
+    ["Australia structured location","Sydney, Australia • Melbourne, Australia",""],
+    ["Singapore structured location","Singapore",""],
+    ["non-European region","APAC",""],
     ["Europe excluding Germany","Remote","Remote in Europe excluding Germany."],
   ])("rejects explicit incompatible %s",(_case,location,description)=>expect(isGermanyEligible(job("Product Manager",location,description))).toBe(false));
-  it("retains foreign country mentions and mixed locations that are not requirements",()=>{expect(isGermanyEligible(job("Product Manager","Remote","We support customers in Canada and Europe."))).toBe(true);expect(isGermanyEligible(job("Product Manager","Remote","You will be authorized to work in Canada after onboarding."))).toBe(true);expect(isGermanyEligible(job("Product Manager","Germany / Switzerland",""))).toBe(true);expect(isGermanyEligible(job("Product Manager","UK or Germany",""))).toBe(true);});
+  it("retains European locations, foreign country mentions, and mixed locations that are not requirements",()=>{expect(isGermanyEligible(job("Product Manager","Paris, France",""))).toBe(true);expect(isGermanyEligible(job("Product Manager","Remote","We support customers in Canada and Europe."))).toBe(true);expect(isGermanyEligible(job("Product Manager","Remote","You will be authorized to work in Canada after onboarding."))).toBe(true);expect(isGermanyEligible(job("Product Manager","Germany / Switzerland",""))).toBe(true);expect(isGermanyEligible(job("Product Manager","UK or Germany",""))).toBe(true);});
   it("uses the hardened check through Germany preferences",()=>expect(matchesPreferences(job("Product Manager","Berlin, Germany",""),{location:"Germany"})).toBe(true));
 });
 
