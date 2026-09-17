@@ -4,6 +4,7 @@
 
 - Updated Bundesagentur für Arbeit discovery to the working v6 Jobsuche endpoint and mapped its current response schema while preserving existing filtering, identity, and provider-error behavior.
 - Query each configured Bundesagentur role family independently, aggregate and deduplicate returned reference IDs, and retain the existing provider limit.
+- Normalize the Germany preference to `Deutschland` only in Bundesagentur requests, preserving the private preference value and all other provider behavior.
 
 ## v0.6.1
 
