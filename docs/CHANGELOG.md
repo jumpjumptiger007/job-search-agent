@@ -3,6 +3,7 @@
 ## v0.6.2
 
 - Updated Bundesagentur für Arbeit discovery to the working v6 Jobsuche endpoint and mapped its current response schema while preserving existing filtering, identity, and provider-error behavior.
+- Query each configured Bundesagentur role family independently, aggregate and deduplicate returned reference IDs, and retain the existing provider limit.
 
 ## v0.6.1
 
