@@ -16,6 +16,14 @@ Temporary test or acceptance data created by Codex or automation must be cleaned
 
 Develop each feature release on a dedicated feature branch; keep `main` unchanged until independent review is complete. After implementation and validation, create `docs/reviews/<VERSION>_HANDOFF.md` recording the baseline version/commit, implementation branch, final implementation commit, delivered scope, validation/test results, production-style verification where applicable, known limitations, deferred items, private-data/Git safety status, and readiness for independent review. Commit the handoff with the completed implementation on the feature branch. Do not merge, tag, or release until independent review is complete.
 
+## Development collaboration
+
+Manual ChatGPT is the product-planning layer: settle whether a version is justified, its scope/non-goals, acceptance criteria, and product/workflow tradeoffs before implementation. Codex is the execution layer: inspect the actual workspace and Git state, implement approved scope, test, validate, run production verification when requested, maintain branch/commit hygiene, and provide evidence-based handoff. It must surface genuine product, migration, private-data, scope, or release decisions rather than silently inventing or expanding them.
+
+`codex-with-chatgpt` (C2C) is an independent reasoning and review layer, not a substitute for Codex's execution ownership. Use it where independent reasoning materially improves confidence—implementation review, scope/acceptance checks, ambiguous decisions, defect classification, production-evidence interpretation, and final pre-release review—not mechanically for routine edits, formatting, or ordinary tests. For release verification and final release review, Codex must invoke C2C after relevant implementation/test/production evidence exists; the reviewer must inspect the connected workspace and evidence itself, and the handoff must say whether review completed. If mandatory C2C review cannot complete, Codex must report that clearly and must not present the result as independently reviewed.
+
+The normal version flow is Manual ChatGPT → product scope/acceptance criteria → Codex implementation/tests/production evidence → C2C independent review → Codex handoff → human merge/release decision. Real post-release usage, not speculative work, drives the next planning cycle.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

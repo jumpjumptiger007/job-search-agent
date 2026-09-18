@@ -12,6 +12,7 @@ hardFilters:
 
 discovery:
   roleFamilies: []
+  seniority: [] # Optional explicit levels, for example: [mid, senior]
   location: Germany
   radiusKm: 0
   remotePreference: any

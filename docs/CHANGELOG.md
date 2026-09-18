@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.3
+
+- Enforced configured mid/senior discovery preferences against explicit internship, working-student, and junior titles while retaining ambiguous roles for Review.
+- Enriched Bundesagentur listings through its bounded job-detail endpoint and marked listings without substantive factual source content as unavailable for deterministic scoring, tailoring, and material generation while retaining them for Review.
+- Upgrade previously persisted insufficient BA listings when later detail retrieval is substantive, preserving permanent identity and canonical-source deduplication; document seniority under the discovery configuration that the runtime reads.
+- Keep insufficient source-content jobs in Review while blocking Tailor, material generation, and ready-to-apply workflow states; preserve any historical generated files without treating them as current materials.
+
 ## v0.6.2
 
 - Updated Bundesagentur für Arbeit discovery to the working v6 Jobsuche endpoint and mapped its current response schema while preserving existing filtering, identity, and provider-error behavior.
