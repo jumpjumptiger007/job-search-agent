@@ -21,6 +21,18 @@ describe("V0.6.5 ingestion integrity",()=>{
   expect(db().prepare("SELECT count(*) AS n FROM job_sources WHERE job_id=? AND url=?").get(owner.job.id,target.job.canonical_url)).toEqual({n:0});
   expect(db().prepare("SELECT url,is_canonical FROM job_sources WHERE job_id=? ORDER BY url").all(owner.job.id)).toEqual([{url:"https://owner.example/a",is_canonical:1},{url:"https://owner.example/a-mirror",is_canonical:0}]);
  });
+ it("repairs a stale former-owner canonical URL from its remaining source",()=>{
+  const owner=ingest({company:"Owner Co",title:"Role A",location:"Berlin",url:"https://owner.example/a",sourceName:"Owner Careers",externalId:"owner:a",description:"Owner listing"});
+  ingest({company:"Owner Co",title:"Role A",location:"Berlin",url:"https://owner.example/a-mirror",sourceName:"Owner Mirror",externalId:"owner:a",description:"Owner listing"});
+  const target=ingest({company:"Target Co",title:"Role B",location:"Munich",url:"https://target.example/b",sourceName:"Target Careers",externalId:"target:b",description:"Target listing"});
+  db().prepare("UPDATE jobs SET canonical_url=?, canonical_source=? WHERE id=?").run("https://owner.example/stale", "Stale", owner.job.id);
+  db().prepare("UPDATE job_sources SET job_id=?, is_canonical=0 WHERE url=?").run(owner.job.id,target.job.canonical_url);
+  db().prepare("DELETE FROM job_sources WHERE job_id=? AND url=?").run(target.job.id,target.job.canonical_url);
+  ingest({company:"Target Co",title:"Role B",location:"Munich",url:target.job.canonical_url,sourceName:"Target Careers",externalId:"target:b",description:"Target listing"});
+  expect(db().prepare("SELECT canonical_url,canonical_source FROM jobs WHERE id=?").get(owner.job.id)).toEqual({canonical_url:"https://owner.example/a",canonical_source:"Owner Careers"});
+  expect(db().prepare("SELECT url,is_canonical FROM job_sources WHERE job_id=? ORDER BY url").all(owner.job.id)).toEqual([{url:"https://owner.example/a",is_canonical:1},{url:"https://owner.example/a-mirror",is_canonical:0}]);
+  expect(db().prepare("SELECT count(*) AS n FROM jobs j LEFT JOIN job_sources s ON s.job_id=j.id AND s.url=j.canonical_url AND s.is_canonical=1 WHERE s.id IS NULL").get()).toEqual({n:0});
+ });
  it("keeps identical descriptions from different listings separate with their own sources",()=>{
   const description="The same normalized description for independent roles.";
   const first=ingest({company:"Acme",title:"Engineer",location:"Berlin",url:"https://acme.example/jobs/1",sourceName:"Acme Careers",externalId:"acme:1",description});
