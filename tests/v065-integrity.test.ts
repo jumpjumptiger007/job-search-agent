@@ -61,6 +61,19 @@ describe("V0.6.5 ingestion integrity",()=>{
   db().exec("CREATE TRIGGER reject_source_repair BEFORE UPDATE OF job_id ON job_sources BEGIN SELECT RAISE(ABORT, 'repair rejected'); END");
   expect(()=>ingest({company:"Target Co",title:"Role B",location:"Munich",url:"https://target.example/b",sourceName:"Target Careers",externalId:"target:b",description:"Target listing"})).toThrow("repair rejected");
   expect(db().prepare("SELECT job_id FROM job_sources WHERE url=?").get(target.job.canonical_url)).toEqual({job_id:owner.job.id});
-  expect(db().prepare("SELECT count(*) AS n FROM job_sources WHERE job_id=? AND url=?").get(target.job.id,target.job.canonical_url)).toEqual({n:0});
+ expect(db().prepare("SELECT count(*) AS n FROM job_sources WHERE job_id=? AND url=?").get(target.job.id,target.job.canonical_url)).toEqual({n:0});
+ });
+ it("refuses a repair that would leave the former owner without a source",()=>{
+  const owner=ingest({company:"Owner Co",title:"Role A",location:"Berlin",url:"https://owner.example/a",sourceName:"Owner Careers",externalId:"owner:a",description:"Owner listing"});
+  const target=ingest({company:"Target Co",title:"Role B",location:"Munich",url:"https://target.example/b",sourceName:"Target Careers",externalId:"target:b",description:"Target listing"});
+  db().prepare("UPDATE job_sources SET job_id=?, is_canonical=0 WHERE url=?").run(owner.job.id,target.job.canonical_url);
+  db().prepare("DELETE FROM job_sources WHERE job_id=? AND url=?").run(target.job.id,target.job.canonical_url);
+  db().prepare("DELETE FROM job_sources WHERE job_id=? AND url=?").run(owner.job.id,owner.job.canonical_url);
+  const auditBefore=db().prepare("SELECT count(*) AS n FROM audit_events").get() as {n:number};
+  expect(()=>ingest({company:"Target Co",title:"Role B",location:"Munich",url:"https://target.example/b",sourceName:"Target Careers",externalId:"target:b",description:"Target listing"})).toThrow("SOURCE_OWNERSHIP_REPAIR_UNSAFE");
+  expect(db().prepare("SELECT count(*) AS n FROM jobs").get()).toEqual({n:2});
+  expect(db().prepare("SELECT job_id FROM job_sources WHERE url=?").get(target.job.canonical_url)).toEqual({job_id:owner.job.id});
+  expect(db().prepare("SELECT canonical_url FROM jobs WHERE id=?").get(owner.job.id)).toEqual({canonical_url:owner.job.canonical_url});
+  expect(db().prepare("SELECT count(*) AS n FROM audit_events").get()).toEqual(auditBefore);
  });
 });
