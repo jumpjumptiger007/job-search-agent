@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.6.4
+
+- Resolve a previously persisted source URL to its permanent job before creating a new record, preserving canonical source history and richer captured content during rediscovery.
+- Submit explicit application-status enum values, represent persisted `NOT_APPLIED` accurately, and keep the manual `READY_TO_APPLY` transition aligned with dashboard queues.
+
 ## v0.6.3
 
 - Enforced configured mid/senior discovery preferences against explicit internship, working-student, and junior titles while retaining ambiguous roles for Review.

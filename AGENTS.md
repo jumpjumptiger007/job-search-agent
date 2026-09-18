@@ -24,6 +24,10 @@ Manual ChatGPT is the product-planning layer: settle whether a version is justif
 
 The normal version flow is Manual ChatGPT → product scope/acceptance criteria → Codex implementation/tests/production evidence → C2C independent review → Codex handoff → human merge/release decision. Real post-release usage, not speculative work, drives the next planning cycle.
 
+For applicable Codex development workflows, use the available Ponytail skill and keep the solution minimal; do not claim it was used unless it was actually invoked.
+
+Before final handoff or release review, mandatory C2C review must inspect the actual workspace, the actual implementation-branch diff, and fresh validation evidence itself, rather than relying only on the implementer's summary. In-scope defects found by C2C must be fixed and revalidated before handoff. If C2C is unavailable, do not fabricate an independent review; report that it is incomplete.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
