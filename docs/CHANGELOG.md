@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.6
+
+- Repair historically misowned source URLs only when the persisted canonical URL, external ID, and company/title/location identity consistently identify another existing permanent job; move the source atomically and preserve unrelated history.
+
 ## v0.6.4
 
 - Resolve a previously persisted source URL to its permanent job before creating a new record, preserving canonical source history and richer captured content during rediscovery.
