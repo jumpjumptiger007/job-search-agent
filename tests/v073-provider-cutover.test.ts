@@ -54,6 +54,27 @@ describe("V0.7.3 sequential provider cutover",()=>{
     finally {globalThis.fetch=original;}
   });
 
+  it("keeps pinned Personio office aggregation and createdAt mapping through project filters",async()=>{
+    const xml=`<workzag-jobs><position><id>42</id><name>Senior Engineer</name><office>Berlin, Germany</office><additionalOffices><office>Munich, Germany</office><office>Berlin, Germany</office></additionalOffices><createdAt>2020-01-02T03:04:05+00:00</createdAt></position></workzag-jobs>`;
+    const personioTransport=injectableCareerOpsTransport({fetchJson:async()=>null,fetchText:async()=>xml,fetchResponse:async()=>new Response()});
+    const [found]=await discoverPersonio("https://acme.jobs.personio.de",undefined,undefined,personioTransport);
+    expect(found).toMatchObject({location:"Berlin, Germany, Munich, Germany",postedAt:"2020-01-02T03:04:05.000Z"});expect(matchesPreferences(found,{location:"Germany"})).toBe(true);expect(matchesPreferences(found,{postingAgeDays:1})).toBe(false);
+  });
+
+  it("uses pinned Personio XML-404 HTML fallback without inventing XML compatibility fields",async()=>{
+    const missing=Object.assign(new Error("HTTP 404"),{status:404}),html=`<a class="job-box" href="/job/77?language=en"><h3>Fallback Engineer</h3><span class="jobMetaText">Berlin, Germany</span></a>`;let calls:string[]=[];
+    const personioTransport=injectableCareerOpsTransport({fetchJson:async()=>null,fetchText:async url=>{calls.push(url);if(url.endsWith("/xml"))throw missing;return html;},fetchResponse:async()=>new Response()});
+    const [found]=await discoverPersonio("https://acme.jobs.personio.com",undefined,undefined,personioTransport);
+    expect(calls).toEqual(["https://acme.jobs.personio.com/xml","https://acme.jobs.personio.com/?language=en"]);expect(found).toMatchObject({title:"Fallback Engineer",url:"https://acme.jobs.personio.com/job/77",sourceName:"Personio",ats:"Personio",externalId:"personio:acme:77",description:"",contentStatus:"INSUFFICIENT",discoveredVia:"configured ATS"});expect(found.workModel).toBeUndefined();
+  });
+
+  it("enriches only the pinned provider's accepted numeric row when nested descriptions contain literal position text",async()=>{
+    const xml=`<workzag-jobs><position><id>42</id><name>Senior Engineer</name><office>Berlin, Germany</office><jobDescriptions><jobDescription><name>Tasks</name><value><![CDATA[Build services with literal </position> text.]]></value></jobDescription></jobDescriptions><employmentType>hybrid</employmentType></position><position><id>not-a-number</id><name>Ignored</name><office>Berlin, Germany</office><jobDescriptions><![CDATA[Must not become a job.]]></jobDescriptions></position></workzag-jobs>`;
+    const personioTransport=injectableCareerOpsTransport({fetchJson:async()=>null,fetchText:async()=>xml,fetchResponse:async()=>new Response()});
+    const rows=await discoverPersonio("https://acme.jobs.personio.de",undefined,undefined,personioTransport);
+    expect(rows).toHaveLength(1);expect(rows[0]).toMatchObject({externalId:"personio:acme:42",description:"Tasks Build services with literal text.",workModel:"hybrid"});
+  });
+
   it("makes Personio validation, language supersession, unsupported IDs, errors, and permanent identity convergence explicit",async()=>{
     const numeric=`<workzag-jobs><position><id>42</id><name>Senior Engineer</name><office>Berlin, Germany</office></position><position><id>legacy-id</id><name>Legacy fixture</name><office>Berlin, Germany</office></position></workzag-jobs>`;
     let requested="";const personioTransport=injectableCareerOpsTransport({fetchJson:async()=>null,fetchText:async url=>{requested=url;return numeric;},fetchResponse:async()=>new Response()});

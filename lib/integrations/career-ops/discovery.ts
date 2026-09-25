@@ -54,7 +54,8 @@ const personioId = (url:string,tenant:string) => { try { const parsed=new URL(ur
 const personioText = (value:string) => value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,"$1").replace(/<[^>]*>/g," ").replace(/&(?:amp|lt|gt|quot|#39);/g,entity=>({"&amp;":"&","&lt;":"<","&gt;":">","&quot;":"\"","&#39;":"'"})[entity] || entity).replace(/\s+/g," ").trim();
 /** Observes host-only fields for an already accepted Personio job; it never discovers rows. */
 function personioFields(xml:string,id:string) {
-  const escaped=id.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),position=xml.match(new RegExp(`<position\\b[^>]*>[\\s\\S]*?<id\\b[^>]*>\\s*${escaped}\\s*</id>([\\s\\S]*?)</position>`,"i"))?.[1]||"";
+  const escaped=id.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),starts=[...xml.matchAll(/<position\b[^>]*>/gi)].map(match=>match.index!);
+  const position=starts.map((start,index)=>xml.slice(start,starts[index+1])).find(block=>new RegExp(`<id\\b[^>]*>\\s*${escaped}\\s*</id>`,"i").test(block))||"";
   const field=(tag:string)=>position.match(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`,"i"))?.[1];
   return {description:personioText(field("jobDescriptions")||""),workModel:personioText(field("employmentType")||"")};
 }
