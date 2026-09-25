@@ -6,16 +6,15 @@ import { db } from "./db";
 import type { CandidateProfile, DiscoveredJob, DiscoveryPreferences } from "./types";
 import { loadProfile } from "./materials";
 import { loadScoringConfig, scoreJob, type ScoringConfig } from "./scoring";
-import { discoverGreenhouse,discoverLever } from "./integrations/career-ops";
+import { discoverGreenhouse,discoverLever,discoverPersonio,validatePersonioSource } from "./integrations/career-ops";
 import type { CareerOpsTransport } from "./integrations/career-ops";
 
 export interface DiscoveryAdapter { name:string; discover():Promise<DiscoveredJob[]>; }
 type WebConfig={enabled?:boolean;maxQueries?:number;maxRawCandidates?:number;maxProcessedCandidates?:number;endpoint?:string};
 const jobText=(html:string="")=>html.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&").replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim();
-const xmlValue=(xml:string,tag:string)=>{const match=xml.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`,"i"));return match?jobText(match[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,"$1")):undefined;};
 const positive=(value:unknown,fallback:number)=>Number.isInteger(value)&&Number(value)>0?Number(value):fallback;
 const hostname=(value:string)=>{try{return new URL(value).hostname.replace(/^www\./,"");}catch{return "";}};
-const personioHost=/^[a-z0-9-]+\.jobs\.personio\.[a-z]{2,}$/i;
+const personioHost=/^[a-z0-9-]+\.jobs\.personio\.(?:de|com)$/i;
 const isPersonioUrl=(value:string)=>{try{return personioHost.test(new URL(value).hostname);}catch{return false;}};
 const atsFor=(url:string)=>/greenhouse\.io/.test(url)?"Greenhouse":/lever\.co/.test(url)?"Lever":isPersonioUrl(url)?"Personio":undefined;
 const tenantFor=(url:string,ats?:string)=>{try{const u=new URL(url),parts=u.pathname.split("/").filter(Boolean);if(ats==="Greenhouse"||ats==="Lever")return parts[0];if(ats==="Personio")return u.hostname.match(/^([^.]+)\.jobs\.personio\.[a-z]+$/i)?.[1];return undefined;}catch{return undefined;}};
@@ -89,11 +88,7 @@ export const matchesPreferences=(job:DiscoveredJob,p:DiscoveryPreferences)=>{
 
 export class GreenhouseAdapter implements DiscoveryAdapter{name="Greenhouse";constructor(private board:string,private limit?:number){}async discover(){return discoverGreenhouse(this.board,this.limit);}}
 export class LeverAdapter implements DiscoveryAdapter{name="Lever";constructor(private company:string,private limit?:number,private transport?:CareerOpsTransport){}async discover(){return discoverLever(this.company,this.limit,this.transport);}}
-export class PersonioAdapter implements DiscoveryAdapter {
-  name="Personio"; private base:URL; private tenant:string;
-  constructor(source:unknown,private limit?:number,private language="en",private company?:string){const raw=typeof source==="string"?source.trim():"";if(!/^https:\/\//i.test(raw))throw new Error("Personio source must be an explicit public https://<tenant>.jobs.personio.<tld> URL");const url=new URL(raw);if(url.username||url.password||!personioHost.test(url.hostname))throw new Error("Personio source must be an explicit public https://<tenant>.jobs.personio.<tld> URL");this.base=new URL(`${url.protocol}//${url.host}`);this.tenant=tenantFor(this.base.href,"Personio")!;}
-  async discover(){const endpoint=new URL("/xml",this.base);endpoint.searchParams.set("language",this.language);const res=await fetch(endpoint);if(!res.ok)throw new Error(`Personio returned ${res.status}`);const xml=await res.text();return[...xml.matchAll(/<position(?:\s[^>]*)?>([\s\S]*?)<\/position>/gi)].slice(0,this.limit).flatMap(match=>{const row=match[1],id=xmlValue(row,"id");if(!id)return[];return[{company:this.company||this.tenant,title:xmlValue(row,"name")||"Unknown role",location:xmlValue(row,"office"),url:new URL(`/job/${encodeURIComponent(id)}`,this.base).href,sourceName:"Personio",ats:"Personio",externalId:`personio:${this.tenant}:${id}`,description:xmlValue(row,"jobDescriptions")||"",workModel:xmlValue(row,"employmentType"),discoveredVia:"configured ATS"}];});}
-}
+export class PersonioAdapter implements DiscoveryAdapter {name="Personio";constructor(private source:unknown,private limit?:number,_language="en",private company?:string,private transport?:CareerOpsTransport){validatePersonioSource(source);}async discover(){return discoverPersonio(this.source,this.company,this.limit,this.transport);}}
 export class BundesagenturAdapter implements DiscoveryAdapter {
   name="Bundesagentur für Arbeit";
   constructor(private p:DiscoveryPreferences,private limit:number){}

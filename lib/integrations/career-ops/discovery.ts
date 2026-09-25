@@ -42,3 +42,26 @@ export async function discoverLever(company:string, limit?:number, transport?:Ca
     return {...job,ats:"Lever",...(id ? {externalId:`lever:${company}:${id}`} : {}),...(typeof raw?.workplaceType === "string" ? {workModel:raw.workplaceType} : {}),discoveredVia:"configured ATS"};
   });
 }
+
+const personioHost = /^[a-z0-9][a-z0-9-]*\.jobs\.personio\.(?:de|com)$/i;
+const personioConfigError = "Personio source must be an explicit public https://<tenant>.jobs.personio.<tld> URL";
+export function validatePersonioSource(source:unknown) {
+  const raw = typeof source === "string" ? source.trim() : "";
+  try { const url = new URL(raw); if (url.protocol !== "https:" || url.username || url.password || !personioHost.test(url.hostname)) throw new Error(); return {tenant:url.hostname.split(".")[0].toLowerCase(),url:`https://${url.hostname}`}; }
+  catch { throw new Error(personioConfigError); }
+}
+const personioId = (url:string,tenant:string) => { try { const parsed=new URL(url),id=parsed.pathname.match(/^\/job\/(\d+)$/)?.[1],host=parsed.hostname.toLowerCase(); return host===`${tenant}.jobs.personio.de`||host===`${tenant}.jobs.personio.com` ? id : undefined; } catch { return undefined; } };
+const personioText = (value:string) => value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,"$1").replace(/<[^>]*>/g," ").replace(/&(?:amp|lt|gt|quot|#39);/g,entity=>({"&amp;":"&","&lt;":"<","&gt;":">","&quot;":"\"","&#39;":"'"})[entity] || entity).replace(/\s+/g," ").trim();
+/** Observes host-only fields for an already accepted Personio job; it never discovers rows. */
+function personioFields(xml:string,id:string) {
+  const escaped=id.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),position=xml.match(new RegExp(`<position\\b[^>]*>[\\s\\S]*?<id\\b[^>]*>\\s*${escaped}\\s*</id>([\\s\\S]*?)</position>`,"i"))?.[1]||"";
+  const field=(tag:string)=>position.match(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`,"i"))?.[1];
+  return {description:personioText(field("jobDescriptions")||""),workModel:personioText(field("employmentType")||"")};
+}
+/** Runs the pinned Personio provider, observing its XML response only for accepted-row compatibility fields. */
+export async function discoverPersonio(source:unknown,company?:string,limit?:number,transport?:CareerOpsTransport):Promise<DiscoveredJob[]> {
+  const config=validatePersonioSource(source),projectRoot=path.resolve(__dirname,"../../.."),provider=await loadCareerOpsProvider("personio",projectRoot),base=transport||await loadCareerOpsTransport(projectRoot); let xml="";
+  const wrapped={...base,fetchText:async(url:string,options?:object)=>{const body=await base.fetchText(url,options);if(url===`${config.url}/xml`)xml=body;return body;}};
+  const rows=await provider.fetch({name:company||config.tenant,careers_url:config.url},injectableCareerOpsTransport(wrapped));
+  return rows.slice(0,limit).map(sourceJob=>{const id=personioId(sourceJob.url,config.tenant),fields=id&&xml?personioFields(xml,id):undefined;const {job}=adaptCareerOpsJob({...sourceJob,description:fields?.description||sourceJob.description},provider,"Personio");return {...job,ats:"Personio",...(id?{externalId:`personio:${config.tenant}:${id}`} : {}),...(fields?.workModel?{workModel:fields.workModel}:{}),discoveredVia:"configured ATS"};});
+}
