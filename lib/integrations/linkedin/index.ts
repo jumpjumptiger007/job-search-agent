@@ -25,7 +25,7 @@ export class LinkedInAdapter {
   constructor(private preferences: DiscoveryPreferences, private limit: number, private runner: LinkedInRunner = runLinkedInCli) {}
 
   async discover(): Promise<NormalizedJob[]> {
-    const roles = [...new Set((this.preferences.roleFamilies || []).map(value).filter(Boolean))].slice(0, Math.min(this.limit, 5));
+    const roles = [...new Set((this.preferences.roleFamilies || []).map(value).filter(Boolean))].slice(0, 5);
     if (!roles.length || this.limit <= 0) return [];
     const jobs: NormalizedJob[] = [], seen = new Set<string>();
     const location = value(this.preferences.location) || "Germany";

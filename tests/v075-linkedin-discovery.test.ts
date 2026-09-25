@@ -48,6 +48,28 @@ describe("v0.7.5 LinkedIn discovery", () => {
     expect(calls.filter(args => args[0] === "detail")).toHaveLength(2);
   });
 
+  it("tries the next role after an empty result, then stops at one accepted job and detail", async () => {
+    const calls: string[][] = [];
+    const runner: LinkedInRunner = async args => {
+      calls.push(args);
+      if (args[0] === "detail") return JSON.stringify(detail(args[1]));
+      return JSON.stringify({ results: args[args.indexOf("--query") + 1] === "Engineer" ? [card("123456")] : [] });
+    };
+    const jobs = await new LinkedInAdapter({ roleFamilies: ["No Match Role", "No Match Role", "Engineer", "Later Role"] }, 1, runner).discover();
+    expect(jobs.map(job => job.externalId)).toEqual(["linkedin:123456"]);
+    expect(calls.filter(args => args[0] === "search").map(args => args[args.indexOf("--query") + 1])).toEqual(["No Match Role", "Engineer"]);
+    expect(calls.filter(args => args[0] === "detail")).toHaveLength(1);
+  });
+
+  it("attempts no more than five unique role queries when all searches are empty", async () => {
+    const calls: string[][] = [];
+    const runner: LinkedInRunner = async args => { calls.push(args); return JSON.stringify({ results: [] }); };
+    const jobs = await new LinkedInAdapter({ roleFamilies: ["One", " One ", "Two", "Three", "Four", "Five", "Six"] }, 1, runner).discover();
+    expect(jobs).toEqual([]);
+    expect(calls.map(args => args[args.indexOf("--query") + 1])).toEqual(["One", "Two", "Three", "Four", "Five"]);
+    expect(calls.every(args => args[0] === "search" && args[args.indexOf("--page") + 1] === "1" && args[args.indexOf("--limit") + 1] === "1")).toBe(true);
+  });
+
   it.each([[1,"1"],[2,"7"],[7,"7"],[15,"30"],[30,"30"],[31,undefined],[undefined,undefined]])("uses a provider age window no narrower than %s days", async (days, expected) => {
     const { calls, runner } = fixture(); await new LinkedInAdapter({ roleFamilies: ["Engineer"], postingAgeDays: days }, 1, runner).discover();
     expect(calls[0].includes("--jobage") ? calls[0][calls[0].indexOf("--jobage") + 1] : undefined).toBe(expected);
