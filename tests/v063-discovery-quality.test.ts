@@ -24,17 +24,17 @@ describe("v0.6.3 seniority filtering",()=>{
 
 describe("v0.6.3 BA detail capture and rediscovery",()=>{
   const withFetch=async(response:Response|undefined,run:()=>Promise<void>)=>{const original=globalThis.fetch;globalThis.fetch=async(input:any)=>String(input).includes("/v6/jobs")?new Response(JSON.stringify({ergebnisliste:[record]})):response||new Response("unavailable",{status:503});try{await run();}finally{globalThis.fetch=original;}};
-  it("captures substantive bounded detail",async()=>withFetch(new Response(JSON.stringify({stellenangebotsBeschreibung:detail})),async()=>{const [result]=await new BundesagenturAdapter(preferences,1).discover();expect(result.contentStatus).toBe("SUBSTANTIVE");expect(result.description).toContain("Own product strategy");}));
-  it("upgrades a persisted title-only BA job without changing its permanent identity or adding a duplicate",async()=>withFetch(new Response(JSON.stringify({stellenangebotsBeschreibung:detail})),async()=>{
+  it("deliberately leaves new v6 jobs without provider descriptions insufficient",async()=>withFetch(new Response(JSON.stringify({stellenangebotsBeschreibung:detail})),async()=>{const [result]=await new BundesagenturAdapter(preferences,1).discover();expect(result.contentStatus).toBe("INSUFFICIENT");expect(result.description).toBe("");}));
+  it("keeps a persisted insufficient BA job reviewable without changing its permanent identity",async()=>withFetch(new Response(JSON.stringify({stellenangebotsBeschreibung:detail})),async()=>{
     const legacy=ingest({company:"Acme",title:record.stellenangebotsTitel,location:"Berlin",url:"https://www.arbeitsagentur.de/jobsuche/suche?was=legacy",sourceName:"Bundesagentur für Arbeit",ats:"BA",externalId:"ba:legacy-ba-1",description:record.stellenangebotsTitel,contentStatus:"INSUFFICIENT"});
     const [rediscovered]=await new BundesagenturAdapter(preferences,1).discover();
     const upgraded=ingest(rediscovered);
-    expect(upgraded).toMatchObject({created:false,upgraded:true});
+    expect(upgraded).toMatchObject({created:false,upgraded:false});
     expect(upgraded.job.job_id).toBe(legacy.job.job_id);
     expect(db().prepare("SELECT count(*) AS n FROM jobs").get()).toEqual({n:1});
-    expect(upgraded.job).toMatchObject({content_status:"SUBSTANTIVE",jd_original:detail});
+    expect(upgraded.job).toMatchObject({content_status:"INSUFFICIENT",jd_original:record.stellenangebotsTitel});
     setReviewStatus(upgraded.job.job_id,"INTERESTED");
-    expect(workflowQueues().tailor.map(job=>job.job_id)).toEqual([legacy.job.job_id]);
+    expect(workflowQueues().tailor.map(job=>job.job_id)).not.toContain(legacy.job.job_id);
   }));
   it("never downgrades richer BA detail and keeps failed detail retrieval reviewable and blocked",async()=>{
     const existing=ingest({company:"Acme",title:record.stellenangebotsTitel,location:"Berlin",url:"https://www.arbeitsagentur.de/jobsuche/suche?was=legacy",sourceName:"Bundesagentur für Arbeit",ats:"BA",externalId:"ba:legacy-ba-1",description:detail,contentStatus:"SUBSTANTIVE"});

@@ -2,12 +2,13 @@ import fs from "node:fs";
 import { describe,expect,it } from "vitest";
 import { closeDb } from "../lib/db";
 import { ingest } from "../lib/jobs";
-import { GreenhouseAdapter,LeverAdapter,PersonioAdapter,matchesPreferences } from "../lib/discovery";
-import { discoverGreenhouse,discoverLever,discoverPersonio,injectableCareerOpsTransport } from "../lib/integrations/career-ops";
+import { BundesagenturAdapter,GreenhouseAdapter,LeverAdapter,PersonioAdapter,matchesPreferences } from "../lib/discovery";
+import { discoverArbeitsagentur,discoverGreenhouse,discoverLever,discoverPersonio,injectableCareerOpsTransport } from "../lib/integrations/career-ops";
 
 const greenhouse = {id:42,title:"Senior Engineer",absolute_url:"https://boards.greenhouse.io/acme/jobs/42",location:{name:"Berlin, Germany"},content:"<p>Build reliable services for Germany.</p>",updated_at:"2026-09-01",first_published:"2026-08-30"};
 const transport = (body:unknown) => injectableCareerOpsTransport({fetchJson:async url=>{expect(url).toBe("https://boards-api.greenhouse.io/v1/boards/acme/jobs?content=true");return body;},fetchText:async()=>"",fetchResponse:async()=>new Response()});
 const providerTransport = (body:unknown) => injectableCareerOpsTransport({fetchJson:async()=>body,fetchText:async()=>"",fetchResponse:async()=>new Response()});
+const baRecord = {referenznummer:"ba-ref-1",stellenangebotsTitel:"Senior Engineer",firma:"Acme",stellenlokationen:[{adresse:{ort:"Berlin",land:"DEUTSCHLAND"}}],datumErsteVeroeffentlichung:"2020-01-02"};
 
 describe("V0.7.3 sequential provider cutover",()=>{
   it("routes Greenhouse through Career Ops with host config, identity, filtering, limits, and deliberate published-date semantics",async()=>{
@@ -81,5 +82,25 @@ describe("V0.7.3 sequential provider cutover",()=>{
     const rows=await discoverPersonio("https://acme.jobs.personio.com",undefined,undefined,personioTransport);expect(requested).toBe("https://acme.jobs.personio.com/xml");expect(rows).toHaveLength(1);expect(rows[0]).toMatchObject({externalId:"personio:acme:42",contentStatus:"INSUFFICIENT"});expect(()=>new PersonioAdapter("http://acme.jobs.personio.de")).toThrow("explicit public");expect(()=>new PersonioAdapter("https://acme.jobs.personio.fr")).toThrow("explicit public");
     const rejected=injectableCareerOpsTransport({fetchJson:async()=>null,fetchText:async()=>{throw new Error("HTTP 503");},fetchResponse:async()=>new Response()});await expect(discoverPersonio("https://acme.jobs.personio.de",undefined,undefined,rejected)).rejects.toThrow("HTTP 503");
     const file="/private/tmp/v073-personio-cutover.sqlite";process.env.JOB_AGENT_DB_PATH=file;closeDb();try {const legacy=ingest({company:"acme",title:"Senior Engineer",location:"Berlin, Germany",url:"https://acme.jobs.personio.com/job/42",sourceName:"Personio",ats:"Personio",externalId:"personio:acme:42",description:"legacy",contentStatus:"SUBSTANTIVE"});const [found]=await discoverPersonio("https://acme.jobs.personio.com",undefined,1,personioTransport);const rediscovered=ingest(found);expect(rediscovered).toMatchObject({created:false});expect(rediscovered.job.job_id).toBe(legacy.job.job_id);}finally{closeDb();delete process.env.JOB_AGENT_DB_PATH;fs.rmSync(file,{force:true});}
+  });
+
+  it("maps BA date recovery through posting-age filtering and nationwide Germany behavior",async()=>{
+    let requested="";const transport=injectableCareerOpsTransport({fetchJson:async url=>{requested=url;return{ergebnisliste:[baRecord]};},fetchText:async()=>"",fetchResponse:async()=>new Response()});
+    const [job]=await discoverArbeitsagentur({roleFamilies:["Engineer"],location:"Germany",postingAgeDays:7},5,transport);const query=new URL(requested);
+    expect(query.searchParams.get("wo")).toBeNull();expect(query.searchParams.get("umkreis")).toBeNull();expect(query.searchParams.get("veroeffentlichtseit")).toBe("7");expect(job).toMatchObject({location:"Berlin",postedAt:"2020-01-02T00:00:00.000Z",contentStatus:"INSUFFICIENT",externalId:"ba:ba-ref-1",sourceName:"Bundesagentur für Arbeit",ats:"BA"});expect(matchesPreferences(job,{location:"Germany"})).toBe(true);expect(matchesPreferences(job,{postingAgeDays:1})).toBe(false);
+  });
+
+  it("maps specific BA location/radius, avoids no-age narrowing, and enforces total limit",async()=>{
+    const requested:string[]=[];const rows=[baRecord,{...baRecord,referenznummer:"ba-ref-2",stellenangebotsTitel:"Platform Engineer"},{...baRecord,referenznummer:"ba-ref-3",stellenangebotsTitel:"Data Engineer"}];const transport=injectableCareerOpsTransport({fetchJson:async url=>{requested.push(url);const keyword=new URL(url).searchParams.get("was");return{ergebnisliste:keyword==="Engineer"?rows:[rows[0],rows[2]]};},fetchText:async()=>"",fetchResponse:async()=>new Response()});
+    const jobs=await new BundesagenturAdapter({roleFamilies:["Engineer","Engineer","Data"],location:"Munich",radiusKm:35},2,transport).discover();const query=new URL(requested[0]);expect(requested).toHaveLength(2);expect(query.searchParams.get("wo")).toBe("Munich");expect(query.searchParams.get("umkreis")).toBe("35");expect(query.searchParams.get("veroeffentlichtseit")).toBe("1000");expect(jobs).toHaveLength(2);
+  });
+
+  it("returns no BA jobs without role families and converges legacy URLs on permanent identity",async()=>{
+    let calls=0;const emptyTransport=injectableCareerOpsTransport({fetchJson:async()=>{calls++;throw new Error("must not call provider");},fetchText:async()=>"",fetchResponse:async()=>new Response()});expect(await discoverArbeitsagentur({location:"Germany"},5,emptyTransport)).toEqual([]);expect(calls).toBe(0);
+    const file="/private/tmp/v073-ba-cutover.sqlite";process.env.JOB_AGENT_DB_PATH=file;closeDb();const transport=injectableCareerOpsTransport({fetchJson:async()=>({ergebnisliste:[baRecord]}),fetchText:async()=>"",fetchResponse:async()=>new Response()});try {const legacy=ingest({company:"Acme",title:baRecord.stellenangebotsTitel,location:"Berlin",url:"https://www.arbeitsagentur.de/jobsuche/suche?was=ba-ref-1",sourceName:"Bundesagentur für Arbeit",ats:"BA",externalId:"ba:ba-ref-1",description:"",contentStatus:"INSUFFICIENT"});const [found]=await discoverArbeitsagentur({roleFamilies:["Engineer"]},5,transport);const rediscovered=ingest(found);expect(rediscovered).toMatchObject({created:false});expect(rediscovered.job.job_id).toBe(legacy.job.job_id);}finally{closeDb();delete process.env.JOB_AGENT_DB_PATH;fs.rmSync(file,{force:true});}
+  });
+
+  it("keeps partial BA keyword failures and propagates total failure",async()=>{
+    let calls=0;const partial=injectableCareerOpsTransport({fetchJson:async url=>{calls++;if(new URL(url).searchParams.get("was")==="Broken")throw new Error("HTTP 503");return{ergebnisliste:[baRecord]};},fetchText:async()=>"",fetchResponse:async()=>new Response()});expect(await discoverArbeitsagentur({roleFamilies:["Broken","Engineer"]},5,partial)).toHaveLength(1);expect(calls).toBe(2);const total=injectableCareerOpsTransport({fetchJson:async()=>{throw new Error("HTTP 503");},fetchText:async()=>"",fetchResponse:async()=>new Response()});await expect(new BundesagenturAdapter({roleFamilies:["Engineer"]},5,total).discover()).rejects.toThrow("HTTP 503");
   });
 });

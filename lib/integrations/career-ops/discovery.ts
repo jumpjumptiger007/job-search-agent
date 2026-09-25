@@ -1,4 +1,4 @@
-import type { DiscoveredJob } from "../../types";
+import type { DiscoveredJob, DiscoveryPreferences } from "../../types";
 import path from "node:path";
 import { adaptCareerOpsJob } from "./normalize";
 import { injectableCareerOpsTransport,loadCareerOpsProvider,loadCareerOpsTransport,type CareerOpsTransport } from "./providers";
@@ -65,4 +65,42 @@ export async function discoverPersonio(source:unknown,company?:string,limit?:num
   const wrapped={...base,fetchText:async(url:string,options?:object)=>{const body=await base.fetchText(url,options);if(url===`${config.url}/xml`)xml=body;return body;}};
   const rows=await provider.fetch({name:company||config.tenant,careers_url:config.url},injectableCareerOpsTransport(wrapped));
   return rows.slice(0,limit).map(sourceJob=>{const id=personioId(sourceJob.url,config.tenant),fields=id&&xml?personioFields(xml,id):undefined;const {job}=adaptCareerOpsJob({...sourceJob,description:fields?.description||sourceJob.description},provider,"Personio");return {...job,ats:"Personio",...(id?{externalId:`personio:${config.tenant}:${id}`} : {}),...(fields?.workModel?{workModel:fields.workModel}:{}),discoveredVia:"configured ATS"};});
+}
+
+type ArbeitsagenturRaw = { referenznummer?:unknown; datumErsteVeroeffentlichung?:unknown; };
+const arbeitsagenturApi = "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs";
+const arbeitsagenturReference = (url:string) => {
+  try {
+    const parsed=new URL(url),parts=parsed.pathname.split("/").filter(Boolean);
+    if (parsed.protocol !== "https:" || parsed.hostname.toLowerCase() !== "www.arbeitsagentur.de" || parts.length !== 3 || parts[0] !== "jobsuche" || parts[1] !== "jobdetail") return undefined;
+    const reference=decodeURIComponent(parts[2]); return reference || undefined;
+  } catch { return undefined; }
+};
+const arbeitsagenturPostedAt = (value:unknown) => {
+  if (typeof value !== "string" && typeof value !== "number") return undefined;
+  const parsed=typeof value === "number" ? value : Date.parse(value);
+  return Number.isFinite(parsed) && !Number.isNaN(new Date(parsed).valueOf()) ? parsed : undefined;
+};
+
+/** Runs the pinned Arbeitsagentur provider while keeping project preferences and identity local. */
+export async function discoverArbeitsagentur(preferences:DiscoveryPreferences,limit:number,transport?:CareerOpsTransport):Promise<DiscoveredJob[]> {
+  const keywords=[...new Set((preferences.roleFamilies||[]).map(role=>role.trim()).filter(Boolean))];
+  if (!keywords.length) return [];
+  const projectRoot=path.resolve(__dirname,"../../.."),provider=await loadCareerOpsProvider("arbeitsagentur",projectRoot),base=transport||await loadCareerOpsTransport(projectRoot),rawByReference=new Map<string,ArbeitsagenturRaw|null>();
+  const wrapped={...base,fetchJson:async(url:string,options?:object)=>{
+    const body=await base.fetchJson(url,options);
+    if (url.startsWith(`${arbeitsagenturApi}?`) && Array.isArray((body as any)?.ergebnisliste)) for (const raw of (body as any).ergebnisliste as ArbeitsagenturRaw[]) {
+      const reference=typeof raw?.referenznummer === "string" ? raw.referenznummer : "";
+      if (reference) rawByReference.set(reference,rawByReference.has(reference) ? null : raw);
+    }
+    return body;
+  }};
+  const location=(preferences.location||"").trim(),nationwide=/^germany$/i.test(location),days=Number.isInteger(preferences.postingAgeDays)&&Number(preferences.postingAgeDays)>0 ? Math.min(1000,Number(preferences.postingAgeDays)) : 1000;
+  const entry={name:"Arbeitsagentur",arbeitsagentur:{keywords,...(location&&!nationwide?{wo:location}:{}),...(typeof preferences.radiusKm === "number"&&Number.isFinite(preferences.radiusKm)&&preferences.radiusKm>=0?{umkreis:preferences.radiusKm}:{}),days,size:Math.min(100,Math.max(25,limit))}};
+  const rows=await provider.fetch(entry,injectableCareerOpsTransport(wrapped));
+  return rows.slice(0,limit).map(source=>{
+    const reference=arbeitsagenturReference(source.url),raw=reference ? rawByReference.get(reference) : undefined,postedAt=raw ? arbeitsagenturPostedAt(raw.datumErsteVeroeffentlichung) : undefined;
+    const {job}=adaptCareerOpsJob({...source,...(postedAt !== undefined ? {postedAt} : {})},provider,"Bundesagentur für Arbeit");
+    return {...job,ats:"BA",...(reference ? {externalId:`ba:${reference}`} : {}),discoveredVia:"Bundesagentur für Arbeit"};
+  });
 }
