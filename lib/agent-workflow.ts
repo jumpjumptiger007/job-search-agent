@@ -94,3 +94,7 @@ export function readJobAnalysis(jobId: string) {
   const job = selectedJob(jobId); if (!job.analysis_json) return undefined;
   try { return validateJobAnalysis(JSON.parse(job.analysis_json), job, requiredProfile()); } catch (error: any) { throw new Error(`Stored job analysis is invalid: ${error.message}`); }
 }
+
+export function readUsableJobAnalysis(jobId: string) {
+  try { return readJobAnalysis(jobId); } catch { return undefined; }
+}

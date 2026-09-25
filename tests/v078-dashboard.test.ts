@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canonicalEvaluationScore, dashboardWorkflow, evaluationLabel, exportRows, tailorCondition } from "../lib/dashboard";
+import { canonicalEvaluationScore, dashboardWorkflow, evaluationLabel, exportRows, materialActionLabel, tailorCondition } from "../lib/dashboard";
 
 const job = (overrides: Record<string, any> = {}) => ({ job_id: "JOB-0001", company: "Acme", title: "Engineer", review_status: "INTERESTED", application_status: "NOT_APPLIED", material_status: "NOT_GENERATED", content_status: "SUBSTANTIVE", score: 97, analysis_json: JSON.stringify({ evaluation: { score: 4.5 } }), ...overrides });
 
@@ -31,5 +31,12 @@ describe("v0.7 Gate 8 dashboard presentation", () => {
     const row = exportRows([job({ score: 100 })])[0];
     expect(row).toMatchObject({ "Evaluation Score (1–5)": "4.5 / 5" });
     expect(row).not.toHaveProperty("Match Score");
+  });
+
+  it("withholds the material action until canonical analysis is usable", () => {
+    expect(materialActionLabel(job(), undefined)).toBeUndefined();
+    expect(materialActionLabel(job(), { evaluation: { score: 4.5 } })).toBe("Generate materials");
+    expect(materialActionLabel(job({ material_status: "READY" }), { evaluation: { score: 4.5 } })).toBe("Regenerate materials");
+    expect(materialActionLabel(job({ content_status: "INSUFFICIENT" }), { evaluation: { score: 4.5 } })).toBeUndefined();
   });
 });

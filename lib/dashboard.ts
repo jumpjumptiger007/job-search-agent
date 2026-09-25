@@ -23,6 +23,11 @@ export function tailorCondition(job: DashboardJob): TailorCondition {
   return canonicalEvaluationScore(job) === undefined ? "Needs analysis" : "Ready to generate";
 }
 
+export function materialActionLabel(job: DashboardJob, analysis: unknown) {
+  if (job.review_status !== "INTERESTED" || job.content_status === "INSUFFICIENT" || !analysis) return undefined;
+  return job.material_status === "READY" ? "Regenerate materials" : "Generate materials";
+}
+
 export function dashboardWorkflow(jobs: DashboardJob[]) {
   const open = (job: DashboardJob) => !isActive(job) && !isClosed(job);
   return {
