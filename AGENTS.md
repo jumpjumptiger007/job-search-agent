@@ -1,10 +1,10 @@
 # Repository guidance
 
-This is a local-only, single-user personal job-search automation tool. It is not an autonomous AI agent. Keep changes small and practical (YAGNI): do not add SaaS complexity, authentication, cloud infrastructure, multi-user permissions, review bureaucracy, runtime LLM dependencies, or speculative abstractions without a concrete explicit requirement.
+This is a local-only, single-user personal job-search tool. Codex Desktop is the v0.7 Agent/orchestrator. Keep changes small and practical (YAGNI): do not add SaaS complexity, authentication, cloud infrastructure, multi-user permissions, review bureaucracy, runtime LLM dependencies, or speculative abstractions without a concrete explicit requirement.
 
 This is a Germany-focused, local, single-user personal job-search workflow. Discovery and filtering decisions should optimize for jobs realistically relevant to a Germany-based candidate, not a global job-search engine.
 
-Codex and Claude Code are external development/operator tools only. They may edit this repository, run commands, inspect results, and automate maintenance workflows, but the application itself must remain independently runnable as deterministic local software.
+SQLite is the only canonical operational state. Career Ops may supply upstream workflows, policy, evaluation/tailoring rules, and provider capabilities, but is never a state store. Do not introduce Career Ops `applications.md`, `pipeline.md`, `scan-history.tsv`, reports, or another database as canonical runtime state; integrate upstream capabilities in our code without patching vendored or pinned upstream code. Preserve permanent Job IDs and canonical-source/source-ownership behavior. Prefer deleting duplicate custom implementations only after a mature upstream replacement is validated.
 
 Never auto-submit or click final application submission controls. Preserve human-owned decisions, never fabricate candidate facts, and keep all private candidate/job/runtime artifacts out of Git. The practical workflow is discover → deduplicate/canonicalize → score → tailor materials → human applies → track status. Schema evolution must be additive and migration-safe.
 
