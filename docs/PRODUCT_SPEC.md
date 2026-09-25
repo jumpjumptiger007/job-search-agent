@@ -1,17 +1,19 @@
 # Product spec
 
-This is a local-only, single-user personal job-search automation tool, not a SaaS product and not an autonomous AI agent. Prefer small practical changes (YAGNI); authentication, cloud infrastructure, multi-user permissions, review bureaucracy, runtime LLM dependencies, and speculative abstractions are out of scope.
+This is a local-only, single-user personal job-search automation tool, not a SaaS product or a runtime AI service. Prefer small practical changes (YAGNI); authentication, cloud infrastructure, multi-user permissions, review bureaucracy, runtime LLM dependencies, and speculative abstractions are out of scope.
 
 It is a Germany-focused, local, single-user personal job-search workflow. Discovery and filtering should optimize for jobs realistically relevant to a Germany-based candidate rather than global job-search coverage.
 
-Codex or Claude Code may be used externally to maintain the repository, run commands, inspect results, or implement changes. The application itself must remain independently runnable as deterministic local software.
+Codex Desktop is the external Agent/orchestrator for explicit evaluation and tailoring planning. The Next.js application itself remains independently runnable without an LLM inside its process.
 
-The practical workflow is Search → Review → Tailor → Apply. Automation states (`DISCOVERED`, `ANALYZED`, `MATERIAL_GENERATED`) remain separate from human review (`PENDING`, `INTERESTED`, `SKIPPED`) and manual application state (`READY_TO_APPLY`, `APPLIED`). Candidate facts must never be fabricated, and applications must never be auto-submitted.
+The practical workflow is Search → Review → Tailor → Apply. Discovery performs provider discovery, filtering, normalization, canonicalization/deduplication, and SQLite ingestion, then stops at Review; it does not automatically score jobs. Automation states (`DISCOVERED`, `ANALYZED`, `MATERIAL_GENERATED`) remain separate from human review (`PENDING`, `INTERESTED`, `SKIPPED`) and manual application state (`READY_TO_APPLY`, `APPLIED`). Candidate facts must never be fabricated, and applications must never be auto-submitted.
 
-V0.2 ranks and reorders only existing factual profile skills and experience bullets for each captured JD, while cover letters emphasize the top-ranked factual skills. No LLM, embeddings, external AI APIs, or provider credentials are used.
+The project-owned validated `JobAnalysis` is stored in SQLite `jobs.analysis_json`. Its 1–5 score is authoritative; legacy `jobs.score` remains compatibility-only until later UI migration. Candidate claims are allowed only through validated references to the factual project profile. Material generation requires a validated analysis/tailoring plan and remains a deliberate human-controlled action.
+
+Career Ops supplies read-only evaluation, writing, and Germany/DACH policy, never operational state. SQLite remains the only canonical operational state.
 
 
-V0.3 accepts ordinary role, location, work-model, language, age, and per-run-limit preferences. It may query Bundesagentur für Arbeit and bounded web results; third-party platforms are discovery signals only. It keeps reusable official-source knowledge locally, prefers an official careers/ATS URL when a shallow resolution finds one, and stops after deterministic filtering, deduplication, and optional scoring for human review. Material generation remains a deliberate human action.
+V0.3 accepts ordinary role, location, work-model, language, age, and per-run-limit preferences. It may query Bundesagentur für Arbeit and bounded web results; third-party platforms are discovery signals only. It keeps reusable official-source knowledge locally, prefers an official careers/ATS URL when a shallow resolution finds one, and presents accepted jobs for human Review. Material generation remains a deliberate human action.
 
 
 ## V0.4 workflow

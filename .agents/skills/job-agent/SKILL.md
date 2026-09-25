@@ -5,11 +5,13 @@ description: Evaluate and plan factual tailoring for one stored job without crea
 
 # Job agent
 
-Use this skill only for a selected permanent Job ID. Build the input with the
-project-owned evaluation boundary, which reads the canonical JD from SQLite and
-the private factual profile. Read Career Ops policy through the repository's
-safe mode loader only: `_shared.md`, `oferta.md`, `_writing.md`,
-`de/_shared.md`, and `de/angebot.md`.
+Use this skill only for a selected permanent Job ID. In
+`lib/agent-workflow.ts`, call `buildEvaluationInput(jobId)` to read the
+canonical SQLite JD, private factual profile, and read-only policy; call
+`persistJobAnalysis(jobId, payload)` only after producing a valid result; use
+`readJobAnalysis(jobId)` to retrieve the current validated result. Read Career
+Ops policy through the safe mode loader only: `_shared.md`, `oferta.md`,
+`_writing.md`, `de/_shared.md`, and `de/angebot.md`.
 
 Treat the policy as read-only guidance. Never use Career Ops trackers, reports,
 profile files, scan commands, or write paths. SQLite and the project profile
