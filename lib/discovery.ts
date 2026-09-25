@@ -6,7 +6,8 @@ import { db } from "./db";
 import type { CandidateProfile, DiscoveredJob, DiscoveryPreferences } from "./types";
 import { loadProfile } from "./materials";
 import { loadScoringConfig, scoreJob, type ScoringConfig } from "./scoring";
-import { discoverGreenhouse } from "./integrations/career-ops";
+import { discoverGreenhouse,discoverLever } from "./integrations/career-ops";
+import type { CareerOpsTransport } from "./integrations/career-ops";
 
 export interface DiscoveryAdapter { name:string; discover():Promise<DiscoveredJob[]>; }
 type WebConfig={enabled?:boolean;maxQueries?:number;maxRawCandidates?:number;maxProcessedCandidates?:number;endpoint?:string};
@@ -87,7 +88,7 @@ export const matchesPreferences=(job:DiscoveredJob,p:DiscoveryPreferences)=>{
 };
 
 export class GreenhouseAdapter implements DiscoveryAdapter{name="Greenhouse";constructor(private board:string,private limit?:number){}async discover(){return discoverGreenhouse(this.board,this.limit);}}
-export class LeverAdapter implements DiscoveryAdapter{name="Lever";constructor(private company:string,private limit?:number){}async discover(){const res=await fetch(`https://api.lever.co/v0/postings/${this.company}?mode=json`);if(!res.ok)throw new Error(`Lever returned ${res.status}`);const rows=await res.json() as any[];return rows.slice(0,this.limit).map(j=>({company:this.company,title:j.text,location:j.categories?.location,url:j.hostedUrl,sourceName:"Lever",ats:"Lever",externalId:`lever:${this.company}:${j.id}`,description:[j.descriptionPlain,j.additionalPlain].filter(Boolean).join("\n"),workModel:j.workplaceType,discoveredVia:"configured ATS"}));}}
+export class LeverAdapter implements DiscoveryAdapter{name="Lever";constructor(private company:string,private limit?:number,private transport?:CareerOpsTransport){}async discover(){return discoverLever(this.company,this.limit,this.transport);}}
 export class PersonioAdapter implements DiscoveryAdapter {
   name="Personio"; private base:URL; private tenant:string;
   constructor(source:unknown,private limit?:number,private language="en",private company?:string){const raw=typeof source==="string"?source.trim():"";if(!/^https:\/\//i.test(raw))throw new Error("Personio source must be an explicit public https://<tenant>.jobs.personio.<tld> URL");const url=new URL(raw);if(url.username||url.password||!personioHost.test(url.hostname))throw new Error("Personio source must be an explicit public https://<tenant>.jobs.personio.<tld> URL");this.base=new URL(`${url.protocol}//${url.host}`);this.tenant=tenantFor(this.base.href,"Personio")!;}
