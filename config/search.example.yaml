@@ -21,3 +21,7 @@ webSearch:
   maxQueries: 3
   maxRawCandidates: 30
   maxProcessedCandidates: 15
+# Optional public LinkedIn jobs, personal use and low volume only; requires Bun when enabled.
+linkedin:
+  enabled: false
+  limit: 5

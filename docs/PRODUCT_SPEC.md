@@ -12,6 +12,8 @@ The project-owned validated `JobAnalysis` is stored in SQLite `jobs.analysis_jso
 
 Career Ops supplies read-only evaluation, writing, and Germany/DACH policy, never operational state. SQLite remains the only canonical operational state.
 
+Optional LinkedIn discovery uses a pinned public unauthenticated specialist for best-effort, low-volume personal use. It is disabled by default, requires Bun only when enabled, and feeds the same `NormalizedJob` preference filter and SQLite ingestion path; it owns no tracker or application state.
+
 
 V0.3 accepts ordinary role, location, work-model, language, age, and per-run-limit preferences. It may query Bundesagentur für Arbeit and bounded web results; third-party platforms are discovery signals only. It keeps reusable official-source knowledge locally, prefers an official careers/ATS URL when a shallow resolution finds one, and presents accepted jobs for human Review. Material generation remains a deliberate human action.
 
