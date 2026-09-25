@@ -1,45 +1,5 @@
-import crypto from "node:crypto"; import fs from "node:fs"; import path from "node:path";
-import { db } from "./db"; import type { ApplicationStatus, DiscoveredJob, ReviewStatus } from "./types";
-const norm=(v="")=>v.toLowerCase().replace(/https?:\/\/(www\.)?/,'').replace(/[^a-z0-9]+/g,' ').trim();
-const hash=(v:string)=>crypto.createHash("sha256").update(norm(v)).digest("hex");
-const official=(s:string)=>/greenhouse|lever|ashby|personio|workday|smartrecruiters|successfactors|career|careers/i.test(s);
-const storageRoot=()=>process.env.JOB_AGENT_STORAGE_ROOT||process.cwd();
-function folder(id:string, company:string,title:string){ return path.join("jobs",`${id}_${`${company}_${title}`.replace(/[^a-z0-9]+/gi,"_").replace(/^_|_$/g,"").slice(0,80)}`); }
-export function selectCanonical(a:{url:string;sourceName:string},b:{url:string;sourceName:string}) { return official(b.sourceName+" "+b.url) && !official(a.sourceName+" "+a.url) ? b : a; }
-const same=(a:string|undefined|null,b:string|undefined|null)=>norm(a||"")===norm(b||"");
-const canRepairSourceOwnership=(owner:any,target:any,incoming:DiscoveredJob)=>Boolean(owner&&target&&owner.id!==target.id&&owner.canonical_url!==incoming.url&&target.canonical_url===incoming.url&&target.external_id===incoming.externalId&&same(target.company,incoming.company)&&same(target.title,incoming.title)&&same(target.location,incoming.location));
-export function ingest(job:DiscoveredJob) {
- const d=db(), jdHash=hash(job.description), key=[norm(job.company),norm(job.title),norm(job.location)].join("|");
- const urlOwner=d.prepare("SELECT jobs.* FROM job_sources JOIN jobs ON jobs.id=job_sources.job_id WHERE job_sources.url=?").get(job.url) as any;
- let existing=urlOwner, repairTarget:any;
- if(urlOwner&&job.externalId){const target=d.prepare("SELECT * FROM jobs WHERE external_id=?").get(job.externalId) as any;if(canRepairSourceOwnership(urlOwner,target,job)){existing=target;repairTarget=target;}}
- if(!existing&&job.externalId) existing=d.prepare("SELECT * FROM jobs WHERE external_id=?").get(job.externalId) as any;
- if(!existing) existing=d.prepare("SELECT * FROM jobs WHERE lower(company)=? AND lower(title)=? AND ifnull(lower(location),'')=?").get(job.company.toLowerCase(),job.title.toLowerCase(),(job.location||'').toLowerCase()) as any;
- if(existing) { const current={url:existing.canonical_url,sourceName:existing.canonical_source},incoming={url:job.url,sourceName:job.sourceName},canonical=selectCanonical(current,incoming),upgrade=job.ats==="BA"&&existing.content_status==="INSUFFICIENT"&&job.contentStatus==="SUBSTANTIVE"; const saved=d.transaction(()=>{if(repairTarget){const replacement=d.prepare("SELECT url,source_name FROM job_sources WHERE job_id=? AND url<>? ORDER BY id LIMIT 1").get(urlOwner.id,job.url) as any;if(!replacement)throw new Error("SOURCE_OWNERSHIP_REPAIR_UNSAFE: former owner has no replacement source");d.prepare("UPDATE job_sources SET job_id=?, source_name=?, is_canonical=0 WHERE job_id=? AND url=?").run(existing.id,job.sourceName,urlOwner.id,job.url);d.prepare("UPDATE jobs SET canonical_url=?, canonical_source=?, ats=coalesce(?,ats), updated_at=CURRENT_TIMESTAMP WHERE id=?").run(job.url,job.sourceName,job.ats,existing.id);d.prepare("UPDATE jobs SET canonical_url=?, canonical_source=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").run(replacement.url,replacement.source_name,urlOwner.id);d.prepare("UPDATE job_sources SET is_canonical=CASE WHEN url=? THEN 1 ELSE 0 END WHERE job_id=?").run(replacement.url,urlOwner.id);d.prepare("INSERT INTO audit_events(job_id,action,detail) VALUES(?,?,?)").run(existing.id,"SOURCE_OWNERSHIP_REPAIRED",JSON.stringify({url:job.url,fromJobId:urlOwner.job_id}));}else d.prepare("INSERT OR IGNORE INTO job_sources(job_id,url,source_name,is_canonical) VALUES(?,?,?,0)").run(existing.id,job.url,job.sourceName); if(canonical===incoming)d.prepare("UPDATE jobs SET canonical_url=?, canonical_source=?, ats=coalesce(?,ats), updated_at=CURRENT_TIMESTAMP WHERE id=?").run(job.url,job.sourceName,job.ats,existing.id); if(upgrade)d.prepare("UPDATE jobs SET jd_original=?, jd_hash=?, content_status='SUBSTANTIVE', score=NULL, score_explanation=NULL, status='DISCOVERED', updated_at=CURRENT_TIMESTAMP WHERE id=?").run(job.description,jdHash,existing.id); d.prepare("UPDATE job_sources SET is_canonical=CASE WHEN url=? THEN 1 ELSE 0 END WHERE job_id=?").run(canonical.url,existing.id); d.prepare("INSERT INTO audit_events(job_id,action,detail) VALUES(?,?,?)").run(existing.id,"SOURCE_DEDUPLICATED",JSON.stringify({url:job.url,key})); if(upgrade)d.prepare("INSERT INTO audit_events(job_id,action,detail) VALUES(?,?,?)").run(existing.id,"SOURCE_CONTENT_UPGRADED",JSON.stringify({source:job.sourceName})); return d.prepare("SELECT * FROM jobs WHERE id=?").get(existing.id) as any;})(); if(upgrade)writeJobFiles(saved); return {job:saved,created:false,upgraded:upgrade}; }
- const saved=d.transaction(()=>{const next=(d.prepare("UPDATE job_id_sequence SET last_value=last_value+1 WHERE singleton=1 RETURNING last_value").get() as {last_value:number}).last_value; const jobId=`JOB-${String(next).padStart(4,"0")}`,dir=folder(jobId,job.company,job.title);
-  const info=d.prepare("INSERT INTO jobs(job_id,company,title,location,work_model,posted_at,canonical_url,canonical_source,ats,external_id,jd_original,jd_hash,folder_path,content_status) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(jobId,job.company,job.title,job.location||null,job.workModel||null,job.postedAt||null,job.url,job.sourceName,job.ats||null,job.externalId||null,job.description,jdHash,dir,job.contentStatus||"SUBSTANTIVE");
-  const created=d.prepare("SELECT * FROM jobs WHERE id=?").get(info.lastInsertRowid) as any; d.prepare("INSERT INTO job_sources(job_id,url,source_name,is_canonical) VALUES(?,?,?,1)").run(created.id,job.url,job.sourceName); d.prepare("INSERT INTO audit_events(job_id,action,detail) VALUES(?,?,?)").run(created.id,"DISCOVERED",JSON.stringify({key})); return created;
- })(); writeJobFiles(saved); return {job:saved,created:true};
-}
-export function writeJobFiles(job:any){ const dir=path.join(storageRoot(),job.folder_path); fs.mkdirSync(dir,{recursive:true}); fs.writeFileSync(path.join(dir,"jd_original.md"),`# Captured job description\n\n- Source: ${job.canonical_source}\n- URL: ${job.canonical_url}\n- Captured: ${job.found_at}\n\n---\n\n${job.jd_original}`); fs.writeFileSync(path.join(dir,"job.json"),JSON.stringify({jobId:job.job_id,company:job.company,title:job.title,canonicalSource:job.canonical_source,url:job.canonical_url,ats:job.ats,postedAt:job.posted_at},null,2)); fs.writeFileSync(path.join(dir,"analysis.md"),job.score_explanation||"Analysis pending. Add a factual candidate profile and scoring configuration.\n"); }
-export function listJobs(){return db().prepare("SELECT * FROM jobs ORDER BY priority DESC, found_at DESC").all() as any[];}
-export function workflowQueues(jobs=listJobs()){
- const closed=(j:any)=>j.review_status==="SKIPPED"||["REJECTED","WITHDRAWN"].includes(j.application_status),active=(j:any)=>["APPLIED","INTERVIEW","OFFER"].includes(j.application_status);
- return {review:jobs.filter(j=>j.review_status==="PENDING"&&!closed(j)),tailor:jobs.filter(j=>j.review_status==="INTERESTED"&&j.content_status!=="INSUFFICIENT"&&j.material_status!=="READY"&&!active(j)&&!closed(j)),materialsReady:jobs.filter(j=>j.review_status==="INTERESTED"&&j.content_status!=="INSUFFICIENT"&&j.material_status==="READY"&&j.application_status==="NOT_APPLIED"),readyToApply:jobs.filter(j=>j.content_status!=="INSUFFICIENT"&&j.application_status==="READY_TO_APPLY"&&!closed(j)),active:jobs.filter(active),historical:jobs.filter(closed)};
-}
-export function getJob(id:string){return db().prepare("SELECT * FROM jobs WHERE job_id=?").get(id) as any;}
-export function setReviewStatus(jobId:string, reviewStatus:ReviewStatus) {
- const d=db(), job=getJob(jobId); if(!job) throw new Error("Job not found");
- d.prepare("UPDATE jobs SET review_status=?, skipped=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").run(reviewStatus,reviewStatus==="SKIPPED"?1:0,job.id);
- d.prepare("INSERT INTO audit_events(job_id,action,detail) VALUES(?,?,?)").run(job.id,`REVIEW_${reviewStatus}`,JSON.stringify({from:job.review_status,to:reviewStatus}));
- return getJob(jobId);
-}
-const applicationStates:ApplicationStatus[]=["NOT_APPLIED","READY_TO_APPLY","APPLIED","INTERVIEW","REJECTED","OFFER","WITHDRAWN"];
-export function setApplicationStatus(jobId:string, applicationStatus:ApplicationStatus) {
- const d=db(), job=getJob(jobId); if(!job) throw new Error("Job not found");
- if(!applicationStates.includes(applicationStatus)) throw new Error("Invalid application status");
- if(applicationStatus==="READY_TO_APPLY"&&(job.review_status!=="INTERESTED"||job.content_status==="INSUFFICIENT"||job.material_status!=="READY")) throw new Error("Materials must be ready for an interested job with substantive source content before it can be ready to apply");
- d.prepare("UPDATE jobs SET application_status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").run(applicationStatus,job.id);
- d.prepare("INSERT INTO audit_events(job_id,action,detail) VALUES(?,?,?)").run(job.id,"APPLICATION_STATUS_CHANGED",JSON.stringify({from:job.application_status,to:applicationStatus}));
- return getJob(jobId);
-}
+export { selectCanonical } from "./core/job-identity";
+export { writeJobFiles } from "./job-artifacts";
+export { ingest,listJobs,getJob,setReviewStatus,setApplicationStatus,workflowQueues } from "./job-store";
+export type JobStatus = "DISCOVERED" | "ANALYZED" | "MATERIAL_GENERATED";
+export type MaterialStatus = "NOT_GENERATED" | "GENERATING" | "READY" | "ERROR";
