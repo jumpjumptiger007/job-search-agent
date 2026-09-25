@@ -10,7 +10,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint .",
     "verify": "npm test && npm run typecheck && npm run lint && npm run build",
-    "verify:core": "vitest run tests/core.test.ts tests/v04-release.test.ts tests/v06-workflow.test.ts tests/v063-discovery-quality.test.ts tests/v065-integrity.test.ts tests/v07-db-integrity.test.ts tests/v07-integration-boundary.test.ts tests/v071-core-boundary.test.ts tests/v072-career-ops.test.ts tests/v073-provider-cutover.test.ts tests/v074-agent-workflow.test.ts tests/v075-linkedin-discovery.test.ts tests/v076-rendercv.test.ts tests/v077-job-artifacts.test.ts",
+    "verify:core": "vitest run tests/core.test.ts tests/v04-release.test.ts tests/v06-workflow.test.ts tests/v063-discovery-quality.test.ts tests/v065-integrity.test.ts tests/v07-db-integrity.test.ts tests/v07-integration-boundary.test.ts tests/v071-core-boundary.test.ts tests/v072-career-ops.test.ts tests/v073-provider-cutover.test.ts tests/v074-agent-workflow.test.ts tests/v075-linkedin-discovery.test.ts tests/v076-rendercv.test.ts tests/v077-job-artifacts.test.ts tests/v078-dashboard.test.ts",
     "career-ops:doctor": "tsx scripts/career-ops-doctor.ts",
     "rendercv:doctor": "tsx scripts/rendercv-doctor.ts",
     "rendercv:smoke": "tsx scripts/rendercv-smoke.ts",
