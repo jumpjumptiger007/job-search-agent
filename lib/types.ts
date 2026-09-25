@@ -2,7 +2,6 @@ export type JobStatus = "DISCOVERED" | "ANALYZED" | "MATERIAL_GENERATED";
 export type MaterialStatus = "NOT_GENERATED" | "GENERATING" | "READY" | "ERROR";
 export type ReviewStatus = "PENDING" | "INTERESTED" | "SKIPPED";
 export type ApplicationStatus = "NOT_APPLIED" | "READY_TO_APPLY" | "APPLIED" | "INTERVIEW" | "REJECTED" | "OFFER" | "WITHDRAWN";
-export interface CandidateProfile { skills?: string[]; roleFamilies?: string[]; preferredLocations?: string[]; languages?: string[]; remotePreference?: string; }
 export type ContentStatus = "SUBSTANTIVE" | "INSUFFICIENT";
 export interface NormalizedJob { company:string; title:string; location?:string; url:string; sourceName:string; ats?:string; externalId?:string; description:string; contentStatus?:ContentStatus; postedAt?:string; workModel?:string; discoveredVia?:string; }
 export type DiscoveredJob = NormalizedJob;
