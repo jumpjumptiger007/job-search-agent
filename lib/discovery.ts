@@ -6,6 +6,7 @@ import { db } from "./db";
 import type { CandidateProfile, DiscoveredJob, DiscoveryPreferences } from "./types";
 import { loadProfile } from "./materials";
 import { loadScoringConfig, scoreJob, type ScoringConfig } from "./scoring";
+import { discoverGreenhouse } from "./integrations/career-ops";
 
 export interface DiscoveryAdapter { name:string; discover():Promise<DiscoveredJob[]>; }
 type WebConfig={enabled?:boolean;maxQueries?:number;maxRawCandidates?:number;maxProcessedCandidates?:number;endpoint?:string};
@@ -85,7 +86,7 @@ export const matchesPreferences=(job:DiscoveredJob,p:DiscoveryPreferences)=>{
   return !(p.postingAgeDays&&job.postedAt&&Date.parse(job.postedAt)<Date.now()-p.postingAgeDays*86400000);
 };
 
-export class GreenhouseAdapter implements DiscoveryAdapter{name="Greenhouse";constructor(private board:string,private limit?:number){}async discover(){const res=await fetch(`https://boards-api.greenhouse.io/v1/boards/${this.board}/jobs?content=true`);if(!res.ok)throw new Error(`Greenhouse returned ${res.status}`);const b=await res.json() as any;return b.jobs.slice(0,this.limit).map((j:any)=>({company:this.board,title:j.title,location:j.location?.name,url:j.absolute_url,sourceName:"Greenhouse",ats:"Greenhouse",externalId:`greenhouse:${this.board}:${j.id}`,description:jobText(j.content),postedAt:j.updated_at,discoveredVia:"configured ATS"}));}}
+export class GreenhouseAdapter implements DiscoveryAdapter{name="Greenhouse";constructor(private board:string,private limit?:number){}async discover(){return discoverGreenhouse(this.board,this.limit);}}
 export class LeverAdapter implements DiscoveryAdapter{name="Lever";constructor(private company:string,private limit?:number){}async discover(){const res=await fetch(`https://api.lever.co/v0/postings/${this.company}?mode=json`);if(!res.ok)throw new Error(`Lever returned ${res.status}`);const rows=await res.json() as any[];return rows.slice(0,this.limit).map(j=>({company:this.company,title:j.text,location:j.categories?.location,url:j.hostedUrl,sourceName:"Lever",ats:"Lever",externalId:`lever:${this.company}:${j.id}`,description:[j.descriptionPlain,j.additionalPlain].filter(Boolean).join("\n"),workModel:j.workplaceType,discoveredVia:"configured ATS"}));}}
 export class PersonioAdapter implements DiscoveryAdapter {
   name="Personio"; private base:URL; private tenant:string;
