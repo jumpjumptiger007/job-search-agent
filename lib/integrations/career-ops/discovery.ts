@@ -86,21 +86,23 @@ const arbeitsagenturPostedAt = (value:unknown) => {
 export async function discoverArbeitsagentur(preferences:DiscoveryPreferences,limit:number,transport?:CareerOpsTransport):Promise<DiscoveredJob[]> {
   const keywords=[...new Set((preferences.roleFamilies||[]).map(role=>role.trim()).filter(Boolean))];
   if (!keywords.length) return [];
-  const projectRoot=path.resolve(__dirname,"../../.."),provider=await loadCareerOpsProvider("arbeitsagentur",projectRoot),base=transport||await loadCareerOpsTransport(projectRoot),rawByReference=new Map<string,ArbeitsagenturRaw|null>();
+  const projectRoot=path.resolve(__dirname,"../../.."),provider=await loadCareerOpsProvider("arbeitsagentur",projectRoot),base=transport||await loadCareerOpsTransport(projectRoot),postedAtByReference=new Map<string,number|null>();
   const wrapped={...base,fetchJson:async(url:string,options?:object)=>{
     const body=await base.fetchJson(url,options);
     if (url.startsWith(`${arbeitsagenturApi}?`) && Array.isArray((body as any)?.ergebnisliste)) for (const raw of (body as any).ergebnisliste as ArbeitsagenturRaw[]) {
       const reference=typeof raw?.referenznummer === "string" ? raw.referenznummer : "";
-      if (reference) rawByReference.set(reference,rawByReference.has(reference) ? null : raw);
+      const postedAt=arbeitsagenturPostedAt(raw?.datumErsteVeroeffentlichung),existing=postedAtByReference.get(reference);
+      if (reference && postedAt !== undefined && existing !== null) postedAtByReference.set(reference,existing === undefined || existing === postedAt ? postedAt : null);
     }
     return body;
   }};
-  const location=(preferences.location||"").trim(),nationwide=/^germany$/i.test(location),days=Number.isInteger(preferences.postingAgeDays)&&Number(preferences.postingAgeDays)>0 ? Math.min(1000,Number(preferences.postingAgeDays)) : 1000;
-  const entry={name:"Arbeitsagentur",arbeitsagentur:{keywords,...(location&&!nationwide?{wo:location}:{}),...(typeof preferences.radiusKm === "number"&&Number.isFinite(preferences.radiusKm)&&preferences.radiusKm>=0?{umkreis:preferences.radiusKm}:{}),days,size:Math.min(100,Math.max(25,limit))}};
+  const location=(preferences.location||"").trim(),nationwide=/^germany$/i.test(location),specific=Boolean(location&&!nationwide),days=Number.isInteger(preferences.postingAgeDays)&&Number(preferences.postingAgeDays)>0 ? Math.min(1000,Number(preferences.postingAgeDays)) : 1000;
+  const radius=typeof preferences.radiusKm === "number"&&Number.isFinite(preferences.radiusKm)&&preferences.radiusKm>=0 ? preferences.radiusKm : 0;
+  const entry={name:"Arbeitsagentur",arbeitsagentur:{keywords,...(specific?{wo:location,umkreis:radius}:{}),days,size:Math.min(100,Math.max(25,limit))}};
   const rows=await provider.fetch(entry,injectableCareerOpsTransport(wrapped));
   return rows.slice(0,limit).map(source=>{
-    const reference=arbeitsagenturReference(source.url),raw=reference ? rawByReference.get(reference) : undefined,postedAt=raw ? arbeitsagenturPostedAt(raw.datumErsteVeroeffentlichung) : undefined;
-    const {job}=adaptCareerOpsJob({...source,...(postedAt !== undefined ? {postedAt} : {})},provider,"Bundesagentur für Arbeit");
+    const reference=arbeitsagenturReference(source.url),postedAt=reference ? postedAtByReference.get(reference) : undefined;
+    const {job}=adaptCareerOpsJob({...source,...(typeof postedAt === "number" ? {postedAt} : {})},provider,"Bundesagentur für Arbeit");
     return {...job,ats:"BA",...(reference ? {externalId:`ba:${reference}`} : {}),discoveredVia:"Bundesagentur für Arbeit"};
   });
 }

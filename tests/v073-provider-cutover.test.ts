@@ -90,9 +90,14 @@ describe("V0.7.3 sequential provider cutover",()=>{
     expect(query.searchParams.get("wo")).toBeNull();expect(query.searchParams.get("umkreis")).toBeNull();expect(query.searchParams.get("veroeffentlichtseit")).toBe("7");expect(job).toMatchObject({location:"Berlin",postedAt:"2020-01-02T00:00:00.000Z",contentStatus:"INSUFFICIENT",externalId:"ba:ba-ref-1",sourceName:"Bundesagentur für Arbeit",ats:"BA"});expect(matchesPreferences(job,{location:"Germany"})).toBe(true);expect(matchesPreferences(job,{postingAgeDays:1})).toBe(false);
   });
 
-  it("maps specific BA location/radius, avoids no-age narrowing, and enforces total limit",async()=>{
+  it("retains BA dates through normal multi-keyword reference dedup, maps specific location/radius, and enforces total limit",async()=>{
     const requested:string[]=[];const rows=[baRecord,{...baRecord,referenznummer:"ba-ref-2",stellenangebotsTitel:"Platform Engineer"},{...baRecord,referenznummer:"ba-ref-3",stellenangebotsTitel:"Data Engineer"}];const transport=injectableCareerOpsTransport({fetchJson:async url=>{requested.push(url);const keyword=new URL(url).searchParams.get("was");return{ergebnisliste:keyword==="Engineer"?rows:[rows[0],rows[2]]};},fetchText:async()=>"",fetchResponse:async()=>new Response()});
-    const jobs=await new BundesagenturAdapter({roleFamilies:["Engineer","Engineer","Data"],location:"Munich",radiusKm:35},2,transport).discover();const query=new URL(requested[0]);expect(requested).toHaveLength(2);expect(query.searchParams.get("wo")).toBe("Munich");expect(query.searchParams.get("umkreis")).toBe("35");expect(query.searchParams.get("veroeffentlichtseit")).toBe("1000");expect(jobs).toHaveLength(2);
+    const jobs=await new BundesagenturAdapter({roleFamilies:["Engineer","Engineer","Data"],location:"Munich",radiusKm:35},2,transport).discover();const query=new URL(requested[0]);expect(requested).toHaveLength(2);expect(query.searchParams.get("wo")).toBe("Munich");expect(query.searchParams.get("umkreis")).toBe("35");expect(query.searchParams.get("veroeffentlichtseit")).toBe("1000");expect(jobs).toHaveLength(2);expect(jobs[0].postedAt).toBe("2020-01-02T00:00:00.000Z");expect(matchesPreferences(jobs[0],{postingAgeDays:1})).toBe(false);
+  });
+
+  it("fails closed only for conflicting BA publication dates and preserves the specific-location 0 km default",async()=>{
+    const conflict=injectableCareerOpsTransport({fetchJson:async url=>({ergebnisliste:[{...baRecord,datumErsteVeroeffentlichung:new URL(url).searchParams.get("was")==="First"?"2020-01-02":"2020-01-03"}]}),fetchText:async()=>"",fetchResponse:async()=>new Response()});const [ambiguous]=await discoverArbeitsagentur({roleFamilies:["First","Second"]},5,conflict);expect(ambiguous.postedAt).toBeUndefined();
+    let requested="";const radius=injectableCareerOpsTransport({fetchJson:async url=>{requested=url;return{ergebnisliste:[baRecord]};},fetchText:async()=>"",fetchResponse:async()=>new Response()});await discoverArbeitsagentur({roleFamilies:["Engineer"],location:"Berlin"},5,radius);expect(new URL(requested).searchParams.get("umkreis")).toBe("0");
   });
 
   it("returns no BA jobs without role families and converges legacy URLs on permanent identity",async()=>{
