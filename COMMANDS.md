@@ -8,6 +8,8 @@
 
 `cp config/search.example.yaml config/search.yaml` and enable public Greenhouse/Lever boards or explicitly configured Personio sources, then run `npm run discover`.
 
+Discovery stops at Review. Use Codex Desktop for validated job analysis/tailoring, then deliberately generate resume/cover-letter/package materials; the tool never submits applications automatically.
+
 `npm run export -- xlsx` (or `csv`) writes a portable export under `exports/`.
 
 ## Scheduling

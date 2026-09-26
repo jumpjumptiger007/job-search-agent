@@ -1,16 +1,16 @@
-# Local Job Search Automation v0.5.0
+# Local Job Search Automation v0.7.0
 
-Local-only, single-user job discovery, scoring, application-material preparation, and status tracking. It never submits an application.
+Local-only, single-user job discovery, validated evaluation, application-material preparation, and status tracking. It never submits an application.
 
 This is a deterministic local automation tool, not an autonomous AI agent. Runtime behavior is implemented with local code, configuration, SQLite, filesystem storage, and public ATS endpoints. It does not require an LLM provider.
 
-Codex or Claude Code can be used externally to maintain the repository, run commands, inspect results, and extend workflows, but they are not runtime dependencies of the tool.
+Codex Desktop orchestrates explicit evaluation and tailoring; Career Ops supplies read-only upstream capabilities. SQLite is the sole canonical operational state. Discovery stops at Review, and material generation requires the factual profile plus a validated analysis/tailoring plan. Neither is a runtime LLM dependency.
 
 ## First run
 
 1. Run `npm install`, then `npm run dev`.
-2. Copy example configuration files into private counterparts and add your own factual profile/CV under `profile/`.
-3. Set role, location, work-model, `workingLanguage`, other-language, and run-limit preferences in private `config/preferences.yaml`. Review new jobs as **Interested** or **Skip** before generating factual materials.
+2. Copy the current public discovery-preferences example into a private counterpart and add your own factual profile under `profile/`.
+3. Set role, location, work-model, language, and run-limit preferences in private `config/preferences.yaml`. Review new jobs as **Interested** or **Skip**; selected jobs require validated evaluation/tailoring before factual materials are generated.
 
 No private candidate information, runtime database, job captures, exports, or generated materials is tracked in Git.
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.0
+
+- Established the v0.7 boundary: Codex Desktop orchestrates explicit review, validated evaluation/tailoring, and material preparation while Career Ops remains read-only and LinkedIn remains optional.
+- Made `analysis_json.evaluation.score` the canonical 1–5 score, retained SQLite as the sole operational state, and removed obsolete legacy mirror cleanup tooling.
+- Kept RenderCV resume generation and cover-letter/application-package compatibility, with Dashboard Review → Tailor → Apply flow and no automatic application submission.
+- Repaired source ownership in production SQLite while preserving permanent Job IDs, workflow/review/application state, and user artifacts; did not change providers or schema migrations.
+
 ## v0.6.6
 
 - Repair historically misowned source URLs only when the persisted canonical URL, external ID, and company/title/location identity consistently identify another existing permanent job; move the source atomically and preserve unrelated history.

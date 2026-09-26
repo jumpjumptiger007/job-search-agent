@@ -1,15 +1,3 @@
-candidate:
-  location: ""
-  workAuthorization: ""
-  languages: [] # Candidate facts used for scoring, not discovery filters.
-  preferredLocations: []
-  roleFamilies: []
-  remotePreference: any
-hardFilters:
-  excludedIndustries: []
-  requiredLanguages: []
-  unacceptableLocations: []
-
 discovery:
   roleFamilies: []
   seniority: [] # Optional explicit levels, for example: [mid, senior]

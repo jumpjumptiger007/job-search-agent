@@ -1,6 +1,6 @@
 {
   "name": "job-search-agent",
-  "version": "0.6.6",
+  "version": "0.7.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -15,7 +15,6 @@
     "rendercv:doctor": "tsx scripts/rendercv-doctor.ts",
     "rendercv:smoke": "tsx scripts/rendercv-smoke.ts",
     "verify:db": "tsx scripts/verify-db.ts",
-    "cleanup:legacy-job-files": "tsx scripts/cleanup-legacy-job-files.ts",
     "db:migrate": "tsx scripts/migrate.ts",
     "discover": "tsx scripts/discover.ts",
     "export": "tsx scripts/export.ts"
