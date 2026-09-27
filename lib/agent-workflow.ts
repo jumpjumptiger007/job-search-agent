@@ -86,7 +86,8 @@ export function buildEvaluationInput(jobId: string) {
 
 export function persistJobAnalysis(jobId: string, value: unknown) {
   const job = selectedJob(jobId), analysis = validateJobAnalysis(value, job, requiredProfile()), d = db();
-  d.transaction(() => { d.prepare("UPDATE jobs SET analysis_json=?, status='ANALYZED', updated_at=CURRENT_TIMESTAMP WHERE id=?").run(JSON.stringify(analysis), job.id); d.prepare("INSERT INTO audit_events(job_id,action,detail) VALUES(?,?,?)").run(job.id, "AGENT_ANALYSIS_PERSISTED", JSON.stringify({ schemaVersion: analysis.schemaVersion, score: analysis.evaluation.score })); })();
+  const materialInvalidated = job.material_status !== "NOT_GENERATED", applicationReset = job.application_status === "READY_TO_APPLY";
+  d.transaction(() => { d.prepare("UPDATE jobs SET analysis_json=?, status='ANALYZED', material_status=CASE WHEN material_status='NOT_GENERATED' THEN material_status ELSE 'NOT_GENERATED' END, application_status=CASE WHEN application_status='READY_TO_APPLY' THEN 'NOT_APPLIED' ELSE application_status END, updated_at=CURRENT_TIMESTAMP WHERE id=?").run(JSON.stringify(analysis), job.id); if (materialInvalidated) d.prepare("INSERT INTO audit_events(job_id,action,detail) VALUES(?,?,?)").run(job.id, "MATERIALS_INVALIDATED_BY_ANALYSIS", JSON.stringify({ materialStatus: job.material_status, applicationReset })); d.prepare("INSERT INTO audit_events(job_id,action,detail) VALUES(?,?,?)").run(job.id, "AGENT_ANALYSIS_PERSISTED", JSON.stringify({ schemaVersion: analysis.schemaVersion, score: analysis.evaluation.score })); })();
   return analysis;
 }
 
