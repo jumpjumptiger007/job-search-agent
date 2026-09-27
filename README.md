@@ -1,8 +1,23 @@
-# Job Search Agent v0.7.2
+# Job Search Agent
 
-A local-first, single-user, Germany-focused job-search workflow. It discovers jobs, lets you review and mark them Interested or Skip, supports Codex-assisted validated 1–5 analysis and factual CV/cover-letter tailoring, generates resumes with RenderCV, and tracks applications in local SQLite. Applications are always submitted manually; this tool never submits one automatically.
+A local-first, single-user, Germany-focused, macOS-oriented job-search workflow. The normal interface is the macOS Electron desktop application, which opens the existing Next.js Dashboard. SQLite is the canonical operational state; candidate profile data and generated materials remain local and private. Codex Desktop is the external analysis and tailoring orchestrator—there is no LLM runtime inside the Dashboard or Electron app. Discovery is manually triggered, and applications are always submitted manually.
 
-SQLite is the canonical operational state. Candidate facts and generated materials stay local. Codex Desktop is the external analysis and tailoring orchestrator; the Dashboard itself does not call an LLM.
+Electron is a desktop shell around the existing Next.js application, not a separate application or a self-contained distribution.
+
+## Desktop app
+
+`Job Search Agent.app` starts the existing production Next.js backend from the selected local workspace, opens the Dashboard in an Electron window, and stops the backend when the app explicitly quits. On first launch, choose the local `job-search-agent` workspace in the folder picker. A second Finder or Dock launch activates the existing app window instead of starting another backend; internal Dashboard navigation stays in the app and employer links open in the default browser.
+
+The v0.9 desktop package has these limitations:
+
+- macOS Apple Silicon (`arm64`) only
+- Unsigned and not notarized
+- Not a clean-machine standalone installer; it uses the existing local repository/workspace
+- Requires the existing local Node environment
+- Requires the existing Python/RenderCV environment for resume generation
+- Bun is optional and needed only when LinkedIn discovery is enabled
+
+The generated app is at `desktop/out/Job Search Agent-darwin-arm64/Job Search Agent.app`. Packaging does not bundle the workspace, its data, or these runtimes.
 
 ## Discovery sources
 
@@ -10,19 +25,22 @@ SQLite is the canonical operational state. Candidate facts and generated materia
 - LinkedIn public jobs (optional, low-volume, requires Bun)
 - Greenhouse and Lever
 - Personio career sources you configure explicitly
-- Bounded Web Search and official career pages
+- Bounded web search and official careers pages
 
 There is no direct StepStone, Indeed, or XING integration.
 
 ## Requirements
 
+- macOS on Apple Silicon for the desktop app
 - Node.js and npm
 - Python 3.12 or newer (required by the pinned RenderCV release)
 - Git
 - Codex Desktop for job analysis and tailoring
 - Bun only if you enable LinkedIn discovery
 
-## Install
+## Install and setup
+
+Clone the repository and its submodules, then install the project dependencies and prepare RenderCV:
 
 ```bash
 git clone --recurse-submodules https://github.com/jumpjumptiger007/job-search-agent.git
@@ -38,10 +56,31 @@ cp config/preferences.example.yaml config/preferences.yaml
 npm run db:migrate
 npm run career-ops:doctor
 npm run rendercv:doctor
+```
+
+Create the private candidate profile in `profile/profile.yaml` using your own factual information. The file is git-ignored. Configure your discovery sources in `config/search.yaml` and preferences in `config/preferences.yaml`; both are local private copies.
+
+### Normal desktop use
+
+Build the existing Next.js app, package the Electron shell, then launch the generated app:
+
+```bash
+npm run build
+npm run desktop:package
+open "desktop/out/Job Search Agent-darwin-arm64/Job Search Agent.app"
+```
+
+On first launch, select the local `job-search-agent` workspace. The app remembers that workspace for later launches. The package relies on its existing Node, Python/RenderCV, profile, configuration, and SQLite setup; it is not a self-contained installer.
+
+### Development use
+
+For browser-based Dashboard development, run:
+
+```bash
 npm run dev
 ```
 
-The Dashboard is at <http://localhost:3000>.
+Then open <http://localhost:3000>. `npm run dev` is the development workflow, not the normal daily-use launch method. `npm run desktop:dev` starts the Electron shell development workflow.
 
 ### Optional: LinkedIn discovery
 
@@ -77,22 +116,26 @@ education:
 
 ## Daily workflow
 
-1. Start the app with `npm run dev`.
-2. In the Dashboard, select **Run Discovery**.
-3. Review discovered jobs and mark promising ones **Interested**; mark others **Skip**.
-4. In Codex Desktop, run `Analyze JOB-xxxx using the job-agent workflow.`
-5. Return to the Dashboard and review the validated 1–5 analysis.
-6. Generate materials and inspect the resume and cover letter.
-7. Apply manually, then track application status locally in the Dashboard.
+1. Launch `Job Search Agent.app`.
+2. Run Discovery manually from the Dashboard.
+3. Review jobs and mark each **Interested** or **Skip**.
+4. For an Interested job, use **Copy Codex prompt** in the Dashboard.
+5. In Codex Desktop, run the copied job-specific analysis prompt: `Analyze JOB-xxxx using the job-agent workflow.`
+6. Return to the app and review the validated analysis.
+7. Generate and inspect materials.
+8. Open the employer application page and apply manually.
+9. Track application state in the Dashboard.
 
-You can reuse one dedicated Codex analysis thread for multiple jobs. Keep each Job ID explicit in your request.
+Codex Desktop is a separate application; it is not embedded in Electron.
 
 ## Useful commands
 
 | Command | Purpose |
 | --- | --- |
-| `npm run dev` | Start the Dashboard |
-| `npm run discover` | Run job discovery |
+| `npm run desktop:dev` | Start the Electron shell development workflow |
+| `npm run desktop:package` | Package the macOS arm64 Electron shell |
+| `npm run dev` | Start the Dashboard for browser-based development |
+| `npm run discover` | Run job discovery manually from the command line |
 | `npm run db:migrate` | Create or migrate the local database |
 | `npm run verify` | Run tests, typecheck, lint, and build |
 | `npm run verify:db` | Check local database integrity |
@@ -100,6 +143,8 @@ You can reuse one dedicated Codex analysis thread for multiple jobs. Keep each J
 | `npm run rendercv:doctor` | Check RenderCV setup |
 | `npm run export -- xlsx` | Export jobs as XLSX |
 | `npm run export -- csv` | Export jobs as CSV |
+
+`desktop:*` commands operate on the Electron desktop shell. `npm run dev` runs the browser-based development workflow.
 
 ## Privacy
 
