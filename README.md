@@ -114,4 +114,8 @@ Keep these files and directories private; they are git-ignored:
 
 Public example configuration contains no private candidate data.
 
+## Security
+
+`xlsx@0.18.5` is currently retained only for spreadsheet export. The project does not parse uploaded or arbitrary XLSX files. Known SheetJS advisories concern parsing crafted workbooks, so that attack path is not exposed by the current application; `npm audit` may still report the dependency. If XLSX import or parsing is introduced, upgrade or replace `xlsx` with a non-vulnerable implementation first.
+
 See [COMMANDS.md](COMMANDS.md) for more commands and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system details.
