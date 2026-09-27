@@ -2,6 +2,9 @@ import { isActive, isClosed, isReadyToApply } from "./core/job-workflow";
 
 export type DashboardJob = Record<string, any>;
 export type TailorCondition = "Needs analysis" | "Ready to generate" | "Generation error" | "Blocked: insufficient source";
+export type NextStepStage = "Review" | "Blocked" | "Analyze" | "Materials" | "Apply" | "Active" | "History";
+export type NextStepAction = "review" | "source" | "analyze" | "materials" | "retry-materials" | "apply" | "track" | "none";
+export type JobNextStep = { stage: NextStepStage; title: string; description: string; action: NextStepAction };
 
 export function canonicalEvaluationScore(job: DashboardJob): number | undefined {
   try {
@@ -17,6 +20,23 @@ export function evaluationLabel(job: DashboardJob) {
   return score === undefined ? "Not analyzed" : `${score} / 5`;
 }
 
+export function codexPrompt(jobId: string) {
+  return `Analyze ${jobId} using the job-agent workflow.`;
+}
+
+export function jobNextStep(job: DashboardJob, hasUsableAnalysis = canonicalEvaluationScore(job) !== undefined): JobNextStep {
+  if (job.review_status === "SKIPPED" || ["REJECTED", "WITHDRAWN"].includes(job.application_status)) return { stage: "History", title: job.application_status === "REJECTED" || job.application_status === "WITHDRAWN" ? "Application closed" : "No action required", description: "This job is retained in history.", action: "none" };
+  if (job.application_status === "APPLIED") return { stage: "Active", title: "Application submitted — keep status current", description: "Update the application status as it progresses.", action: "track" };
+  if (job.application_status === "INTERVIEW") return { stage: "Active", title: "Interview stage — keep status current", description: "Update the application status as it progresses.", action: "track" };
+  if (job.application_status === "OFFER") return { stage: "Active", title: "Offer recorded", description: "Keep the application status current.", action: "track" };
+  if (job.review_status === "PENDING") return { stage: "Review", title: "Review this job", description: "Interested means you want to continue evaluating and preparing this role. Skip removes it from active work.", action: "review" };
+  if (job.review_status === "INTERESTED" && job.content_status === "INSUFFICIENT") return { stage: "Blocked", title: "Source content is insufficient", description: "Captured content is not sufficient for normal analysis or material generation.", action: "source" };
+  if (isReadyToApply(job)) return { stage: "Apply", title: "Ready for manual application", description: "Submit the application on the employer's website. Job Search Agent never submits applications automatically.", action: "apply" };
+  if (job.review_status === "INTERESTED" && !hasUsableAnalysis) return { stage: "Analyze", title: "Analyze this job in Codex Desktop", description: "A validated analysis is required before application materials can be generated.", action: "analyze" };
+  if (job.review_status === "INTERESTED" && job.material_status !== "READY") return job.material_status === "ERROR" ? { stage: "Materials", title: "Material generation failed", description: "Review the source and retry generation when ready.", action: "retry-materials" } : { stage: "Materials", title: "Generate application materials", description: "Validated analysis is ready for factual material generation.", action: "materials" };
+  return { stage: "History", title: "No action required", description: "This job is retained in history.", action: "none" };
+}
+
 export function tailorCondition(job: DashboardJob): TailorCondition {
   if (job.content_status === "INSUFFICIENT") return "Blocked: insufficient source";
   if (job.material_status === "ERROR") return "Generation error";
@@ -30,13 +50,23 @@ export function materialActionLabel(job: DashboardJob, analysis: unknown) {
 
 export function dashboardWorkflow(jobs: DashboardJob[]) {
   const open = (job: DashboardJob) => !isActive(job) && !isClosed(job);
+  const interested = jobs.filter((job) => job.review_status === "INTERESTED" && open(job));
+  const analyze = interested.filter((job) => job.content_status === "INSUFFICIENT" || (job.material_status !== "READY" && canonicalEvaluationScore(job) === undefined));
+  const materials = interested.filter((job) => job.content_status !== "INSUFFICIENT" && job.material_status !== "READY" && canonicalEvaluationScore(job) !== undefined);
   return {
     review: jobs.filter((job) => job.review_status === "PENDING" && open(job)),
-    tailor: jobs.filter((job) => job.review_status === "INTERESTED" && job.material_status !== "READY" && open(job)),
+    analyze,
+    materials,
     apply: jobs.filter((job) => isReadyToApply(job) && open(job)),
     active: jobs.filter(isActive),
     historical: jobs.filter(isClosed),
+    tailor: interested.filter((job) => job.material_status !== "READY"),
   };
+}
+
+export function discoverySummary(run: Record<string, any> | undefined) {
+  if (!run) return undefined;
+  return `${run.jobs_seen || 0} checked · ${run.filtered_candidates || 0} filtered · ${run.new_jobs || 0} new · ${run.duplicates || 0} duplicates`;
 }
 
 export function exportRows(jobs: DashboardJob[]) {
