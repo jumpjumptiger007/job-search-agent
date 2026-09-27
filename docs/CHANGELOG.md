@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.9.0
+
+- Added a macOS Electron desktop shell that runs the existing Next.js app while keeping the existing local workspace and data canonical.
+- Starts and stops the local backend with the app; Finder/LaunchServices second launches restore and focus the existing Dashboard.
+- Keeps internal navigation in the app and opens external employer links in the default browser. Discovery remains manually triggered.
+- Packages for Apple Silicon (macOS arm64). Signing, notarization, and clean-machine distribution remain deferred.
+
 ## v0.8.0
 
 - Redesigned the Dashboard as an operations workspace around Discover → Review → Analyze → Materials → Apply, with a workflow summary, Next Actions, compact queues, and explanatory empty states.
