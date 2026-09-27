@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.8.0
+
+- Redesigned the Dashboard as an operations workspace around Discover → Review → Analyze → Materials → Apply, with a workflow summary, Next Actions, compact queues, and explanatory empty states.
+- Improved Discovery diagnostics and explained successful `0 new` results; surfaced completed runs with issues accurately.
+- Made the Codex Desktop analysis handoff explicit with a job-specific `Copy Codex prompt`, and centralized each job's presented Next Step.
+- Clarified that applications are submitted manually on employer websites. No workflow, schema, backend, or dependency redesign.
+
 ## v0.7.2
 
 - Prepared the project for public open-source use with an MIT root license and complete fresh-clone setup documentation.
