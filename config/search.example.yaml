@@ -1,3 +1,5 @@
+# All discovery sources are disabled by default. After copying this file to
+# config/search.yaml, enable at least one source before running discovery.
 providers:
   - type: greenhouse
     board: example-board-token

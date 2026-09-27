@@ -1,11 +1,11 @@
 discovery:
-  roleFamilies: []
-  seniority: [] # Optional explicit levels, for example: [mid, senior]
+  roleFamilies: [] # Search terms and role-title filters, for example: [Data Analyst]
+  seniority: [] # Selecting mid or senior filters explicit junior/student titles
   location: Germany
-  radiusKm: 0
+  radiusKm: 0 # Distance around a specific location; 0 keeps Germany-wide searches nationwide
   remotePreference: any
-  workingLanguage: German
-  otherLanguages: [] # Example entry: { language: Spanish, requirement: Preferred }
-  postingAgeDays: 30
+  workingLanguage: German # Supported: German, English, German & English
+  otherLanguages: [] # Example entry: { language: Spanish, requirement: Preferred } (or Required)
+  postingAgeDays: 30 # Filter dated postings older than this many days
   limits:
-    perRun: 25
+    perRun: 25 # Maximum accepted jobs across all enabled sources in one run

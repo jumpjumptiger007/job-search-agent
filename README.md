@@ -21,13 +21,16 @@ The generated app is at `desktop/out/Job Search Agent-darwin-arm64/Job Search Ag
 
 ## Discovery sources
 
-- Bundesagentur für Arbeit
-- LinkedIn public jobs (optional, low-volume, requires Bun)
-- Greenhouse and Lever
-- Personio career sources you configure explicitly
-- Bounded web search and official careers pages
+Discovery only searches sources enabled in your private `config/search.yaml`. The public `config/search.example.yaml` intentionally ships with every source disabled. After copying it to `config/search.yaml`, enable at least one source before **Run Discovery** can retrieve jobs.
 
-There is no direct StepStone, Indeed, or XING integration.
+- **Bundesagentur für Arbeit** — general Germany-focused discovery.
+- **Bounded web search** — general discovery signal from a small number of web queries; results may include official careers pages.
+- **LinkedIn public jobs** — optional, low-volume discovery; requires Bun when enabled.
+- **Greenhouse** — searches only the explicitly configured board.
+- **Lever** — searches only the explicitly configured company.
+- **Personio** — searches only an explicitly configured public Personio careers source.
+
+Greenhouse, Lever, and Personio do not automatically search every employer using those platforms. There is no direct StepStone, Indeed, or XING integration.
 
 ## Requirements
 
@@ -38,9 +41,9 @@ There is no direct StepStone, Indeed, or XING integration.
 - Codex Desktop for job analysis and tailoring
 - Bun only if you enable LinkedIn discovery
 
-## Install and setup
+## First run
 
-Clone the repository and its submodules, then install the project dependencies and prepare RenderCV:
+1. Clone the repository and submodules, install dependencies, and prepare RenderCV:
 
 ```bash
 git clone --recurse-submodules https://github.com/jumpjumptiger007/job-search-agent.git
@@ -49,16 +52,43 @@ npm install
 
 python3 -m venv .rendercv-venv
 .rendercv-venv/bin/python -m pip install -r rendercv-requirements.txt
-
-cp config/search.example.yaml config/search.yaml
-cp config/preferences.example.yaml config/preferences.yaml
-
-npm run db:migrate
-npm run career-ops:doctor
-npm run rendercv:doctor
 ```
 
-Create the private candidate profile in `profile/profile.yaml` using your own factual information. The file is git-ignored. Configure your discovery sources in `config/search.yaml` and preferences in `config/preferences.yaml`; both are local private copies.
+2. Create your private `profile/profile.yaml` using the guidance below.
+3. Copy `config/preferences.example.yaml` to `config/preferences.yaml` and set your job preferences.
+4. Copy `config/search.example.yaml` to `config/search.yaml` and enable at least one discovery source. A minimal Germany-oriented start is:
+
+   ```yaml
+   bundesagentur:
+     enabled: true
+
+   webSearch:
+     enabled: true
+
+   linkedin:
+     enabled: false
+   ```
+
+   LinkedIn can be enabled later after installing Bun.
+
+5. Prepare and check the local database and integrations:
+
+   ```bash
+   npm run db:migrate
+   npm run career-ops:doctor
+   npm run rendercv:doctor
+   ```
+
+6. Build and package the desktop app:
+
+   ```bash
+   npm run build
+   npm run desktop:package
+   ```
+
+7. Launch `Job Search Agent.app` and select the local repository workspace when prompted.
+8. Run **Run Discovery** manually in the Dashboard.
+9. Use Codex Desktop for job analysis and tailoring through the Dashboard's **Copy Codex prompt** action.
 
 ### Normal desktop use
 
@@ -82,37 +112,69 @@ npm run dev
 
 Then open <http://localhost:3000>. `npm run dev` is the development workflow, not the normal daily-use launch method. `npm run desktop:dev` starts the Electron shell development workflow.
 
-### Optional: LinkedIn discovery
+## Personal setup
 
-Install Bun using the [official Bun installer](https://bun.sh/docs/installation), then enable this in your private `config/search.yaml`:
+The app uses three local, private configuration files. All three are ignored by Git:
 
-```yaml
-linkedin:
-  enabled: true
-  limit: 5
-```
+- `profile/profile.yaml` — factual candidate profile: who you are.
+- `config/preferences.yaml` — job-search preferences: what jobs you want.
+- `config/search.yaml` — discovery providers: where jobs should be searched.
 
-## Private candidate profile
+### Candidate profile
 
-Create `profile/profile.yaml`. Git ignores this file. Use only your own factual information; for example:
+`profile/profile.yaml` is the factual source of truth used for job analysis and generated materials. Existing PDF or DOCX CV files are **not** automatically parsed or imported. Simply placing a CV in `profile/` does not configure your candidate profile; enter your facts in `profile/profile.yaml`.
+
+Generated materials may select and rephrase facts from the profile, but must not invent candidate facts. Replace this fictional example with accurate information about yourself:
 
 ```yaml
 name: Example Person
 location: Berlin, Germany
+summary: Example analyst with experience turning operational data into clear reports.
 skills:
-  - Python
+  - Example skill
   - Data analysis
 experience:
-  - employer: Example Studio
-    title: Junior Analyst
-    dates: 2023-2025
+  - employer: Example Company
+    title: Example Analyst
+    dates: 2022-2025
     bullets:
-      - Prepared monthly reports
+      - Prepared example reports for a fictional team
 education:
-  - institution: Example University
-    degree: BSc Example Studies
-    dates: 2019-2023
+  - Example University — BSc Example Studies, 2018-2022
+languages:
+  - German
+  - English
 ```
+
+### Job preferences
+
+Copy `config/preferences.example.yaml` to `config/preferences.yaml`. These are the current runtime-supported discovery settings:
+
+```yaml
+discovery:
+  roleFamilies:
+    - Data Analyst
+    - Business Analyst
+  seniority:
+    - mid
+    - senior
+  location: Germany
+  radiusKm: 0
+  remotePreference: any
+  workingLanguage: German & English
+  otherLanguages:
+    - language: Spanish
+      requirement: Preferred
+  postingAgeDays: 30
+  limits:
+    perRun: 25
+```
+
+`roleFamilies` guides role searches and filters unrelated titles. `seniority` can exclude explicitly junior or student roles when `mid` or `senior` is selected. `workingLanguage` accepts `German`, `English`, or `German & English` and filters listings with explicit language requirements; `otherLanguages` can mark another language `Required` or `Preferred`. `postingAgeDays` filters dated listings to the selected recency window. `limits.perRun` caps the total jobs accepted in one discovery run. `location` and `radiusKm` guide location-based discovery; `remotePreference` can be `any`, `remote`, or `hybrid`.
+
+### Discovery providers
+
+Copy `config/search.example.yaml` to `config/search.yaml`. Its sources are all disabled by design, so enable at least one source before running discovery. The minimal starter shown in the first-run checklist enables Bundesagentur and bounded web search for Germany. To opt into low-volume LinkedIn public jobs, [install Bun](https://bun.sh/docs/installation), then set `linkedin.enabled: true` in your private file. Greenhouse requires an explicit board, Lever an explicit company, and Personio an explicit public Personio careers source; these providers do not discover tenants automatically.
 
 ## Daily workflow
 
