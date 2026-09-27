@@ -1,4 +1,4 @@
-# Job Search Agent v0.7.1
+# Job Search Agent v0.7.2
 
 A local-first, single-user, Germany-focused job-search workflow. It discovers jobs, lets you review and mark them Interested or Skip, supports Codex-assisted validated 1–5 analysis and factual CV/cover-letter tailoring, generates resumes with RenderCV, and tracks applications in local SQLite. Applications are always submitted manually; this tool never submits one automatically.
 
@@ -25,7 +25,7 @@ There is no direct StepStone, Indeed, or XING integration.
 ## Install
 
 ```bash
-git clone --recurse-submodules <repository>
+git clone --recurse-submodules https://github.com/jumpjumptiger007/job-search-agent.git
 cd job-search-agent
 npm install
 

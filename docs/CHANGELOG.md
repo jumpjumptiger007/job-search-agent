@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.2
+
+- Prepared the project for public open-source use with an MIT root license and complete fresh-clone setup documentation.
+- Documented the Codex Desktop analysis workflow and supported discovery sources; validated privacy boundaries and ignored runtime/private data.
+- Upgraded `yaml` from 2.8.1 to 2.8.3 for the security fix and documented the retained `xlsx@0.18.5` export-only audit exception.
+- Fresh-clone validation passed with the pinned Career Ops submodule and RenderCV setup.
+
 ## v0.7.1
 
 - Persisting a newly validated `JobAnalysis` now invalidates stale derived material readiness and resets stale `READY_TO_APPLY` to `NOT_APPLIED`.
