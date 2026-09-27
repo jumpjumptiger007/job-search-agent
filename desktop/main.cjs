@@ -3,6 +3,7 @@ const { spawn } = require("node:child_process");
 const http = require("node:http");
 const net = require("node:net");
 const path = require("node:path");
+const { isChildExited } = require("./lib/child-process.cjs");
 const { isInternalUrl, prepareStandaloneRuntime, readWorkspacePath, saveWorkspacePath, validateWorkspace } = require("./lib/workspace.cjs");
 
 app.setName("Job Search Agent");
@@ -19,6 +20,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.on("second-instance", () => {
     if (!mainWindow) return;
+    app.focus({ steal: true });
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.focus();
   });
@@ -68,8 +70,9 @@ if (!app.requestSingleInstanceLock()) {
     const deadline = Date.now() + 45000;
     while (Date.now() < deadline) {
       if (spawnError) break;
-      if (child.exitCode !== null) break;
+      if (isChildExited(child)) break;
       if (await probe(origin)) {
+        if (isChildExited(child)) break;
         backendUrl = origin;
         child.once("exit", (code, signal) => {
           if (state.expectedStop || isQuitting || backend !== state) return;
@@ -94,14 +97,19 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   async function stopBackend(state = backend) {
-    if (!state || state.child.exitCode !== null) {
+    if (!state || isChildExited(state.child)) {
       if (backend === state) backend = undefined;
       return;
     }
     state.expectedStop = true;
     const child = state.child;
-    const exited = new Promise((resolve) => child.once("exit", resolve));
-    child.kill("SIGTERM");
+    let resolveExit;
+    const exited = new Promise((resolve) => {
+      resolveExit = resolve;
+      child.once("exit", resolve);
+    });
+    if (isChildExited(child)) resolveExit();
+    else child.kill("SIGTERM");
     const stopped = await Promise.race([exited.then(() => true), new Promise((resolve) => setTimeout(() => resolve(false), 5000))]);
     if (!stopped) {
       child.kill("SIGKILL");

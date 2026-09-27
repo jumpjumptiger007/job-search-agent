@@ -3,6 +3,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
+const { isChildExited } = require("./lib/child-process.cjs");
 const { isInternalUrl, loadWorkspacePath, prepareStandaloneRuntime, readWorkspacePath, saveWorkspacePath, validateWorkspace } = require("./lib/workspace.cjs");
 
 function workspaceFixture() {
@@ -48,4 +49,10 @@ test("distinguishes local app URLs from external URLs", () => {
   assert.equal(isInternalUrl(`${origin}/jobs/JOB-0001`, origin), true);
   assert.equal(isInternalUrl("https://employer.example/jobs/1", origin), false);
   assert.equal(isInternalUrl("http://127.0.0.1:43128/", origin), false);
+});
+
+test("recognizes child processes exited by code or signal", () => {
+  assert.equal(isChildExited({ exitCode: null, signalCode: null }), false);
+  assert.equal(isChildExited({ exitCode: 0, signalCode: null }), true);
+  assert.equal(isChildExited({ exitCode: null, signalCode: "SIGTERM" }), true);
 });
