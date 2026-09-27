@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.1
+
+- Persisting a newly validated `JobAnalysis` now invalidates stale derived material readiness and resets stale `READY_TO_APPLY` to `NOT_APPLIED`.
+- Preserves real application-progress states and existing generated artifact files, preventing outdated materials from remaining in the Apply queue after re-analysis.
+
 ## v0.7.0
 
 - Established the v0.7 boundary: Codex Desktop orchestrates explicit review, validated evaluation/tailoring, and material preparation while Career Ops remains read-only and LinkedIn remains optional.
