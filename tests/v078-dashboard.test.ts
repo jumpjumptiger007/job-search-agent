@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canonicalEvaluationScore, codexPrompt, dashboardWorkflow, discoverySummary, evaluationLabel, exportRows, jobNextStep, materialActionLabel, tailorCondition } from "../lib/dashboard";
+import { canonicalEvaluationScore, codexPrompt, dashboardWorkflow, discoveryRunPresentation, discoverySummary, evaluationLabel, exportRows, jobNextStep, materialActionLabel, tailorCondition } from "../lib/dashboard";
 
 const job = (overrides: Record<string, any> = {}) => ({ job_id: "JOB-0001", company: "Acme", title: "Engineer", review_status: "INTERESTED", application_status: "NOT_APPLIED", material_status: "NOT_GENERATED", content_status: "SUBSTANTIVE", score: 97, analysis_json: JSON.stringify({ evaluation: { score: 4.5 } }), ...overrides });
 
@@ -53,8 +53,24 @@ describe("v0.7 Gate 8 dashboard presentation", () => {
     expect(jobNextStep(job({ application_status: "REJECTED" }))).toMatchObject({ stage: "History", title: "Application closed", action: "none" });
   });
 
-  it("keeps the Codex prompt exact and describes zero-new discovery as completed data", () => {
+  it("uses complete modern diagnostics and an honest legacy discovery summary", () => {
     expect(codexPrompt("JOB-0042")).toBe("Analyze JOB-0042 using the job-agent workflow.");
-    expect(discoverySummary({ jobs_seen: 21, filtered_candidates: 16, new_jobs: 0, duplicates: 2 })).toBe("21 checked · 16 filtered · 0 new · 2 duplicates");
+    expect(discoverySummary({ jobs_seen: 5, filtered_candidates: 16, accepted_candidates: 5, new_jobs: 3, duplicates: 2 })).toBe("21 checked · 16 filtered · 3 new · 2 duplicates");
+    expect(discoverySummary({ jobs_seen: 5, filtered_candidates: null, accepted_candidates: null, new_jobs: 3, duplicates: 2 })).toBe("3 new · 2 duplicates");
+  });
+
+  it("distinguishes normal zero-new completion from completed runs with issues", () => {
+    expect(discoveryRunPresentation({ ended_at: "2026-09-27", new_jobs: 0, failures: 0, errors: "" })).toMatchObject({ status: "Completed", message: expect.stringContaining("completed normally") });
+    expect(discoveryRunPresentation({ ended_at: "2026-09-27", new_jobs: 0, failures: 1, errors: "Provider failed" })).toMatchObject({ status: "Completed with issues" });
+    expect(discoveryRunPresentation({ ended_at: "2026-09-27", new_jobs: 0, failures: 1, errors: "Provider failed" }).message).not.toContain("completed normally");
+  });
+
+  it("uses the same usable-analysis decision for Dashboard queues and Job Detail", () => {
+    const scoreLooking = job({ analysis_json: JSON.stringify({ evaluation: { score: 4.5 } }) });
+    expect(jobNextStep(scoreLooking, false)).toMatchObject({ stage: "Analyze", action: "analyze" });
+    expect(dashboardWorkflow([scoreLooking], () => false).analyze).toEqual([scoreLooking]);
+    expect(dashboardWorkflow([scoreLooking], () => false).materials).toEqual([]);
+    expect(jobNextStep(scoreLooking, true)).toMatchObject({ stage: "Materials", action: "materials" });
+    expect(dashboardWorkflow([scoreLooking], () => true).materials).toEqual([scoreLooking]);
   });
 });
