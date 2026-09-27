@@ -1,6 +1,7 @@
 node_modules/
 .rendercv-venv/
 .next/
+desktop/out/
 tsconfig.tsbuildinfo
 .env
 config/search.yaml
