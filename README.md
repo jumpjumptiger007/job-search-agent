@@ -19,6 +19,21 @@ The v0.9 desktop package has these limitations:
 
 The generated app is at `desktop/out/Job Search Agent-darwin-arm64/Job Search Agent.app`. Packaging does not bundle the workspace, its data, or these runtimes.
 
+### Unsigned DMG distribution
+
+On an Apple Silicon Mac, install the desktop packaging dependencies and create the DMG:
+
+```bash
+npm ci --prefix desktop
+npm run desktop:dmg
+```
+
+This packages the shell and produces `desktop/out/make/Job Search Agent-0.9.0-arm64.dmg`. The **Job Search Agent** volume contains `Job Search Agent.app` and an Applications-folder drag target. Mount the DMG, drag the app to Applications, and launch it through Finder or the Dock.
+
+The DMG and app are **Apple Silicon (`arm64`) only, unsigned, and not notarized**. macOS Gatekeeper may block first launch; after attempting to open the app, you may need to allow it under **System Settings → Privacy & Security → Open Anyway**.
+
+This is not a clean-machine standalone installer. Prepare the existing `job-search-agent` workspace with its production build (`npm run build`), installed Node and project dependencies, private profile/configuration, SQLite database, and existing Python/RenderCV environment before selecting it in the app. The package does not bundle Node, Python, RenderCV, workspace data, profile/configuration, or Codex Desktop; Codex Desktop remains a separate application.
+
 ## Discovery sources
 
 Discovery only searches sources enabled in your private `config/search.yaml`. The public `config/search.example.yaml` intentionally ships with every source disabled. After copying it to `config/search.yaml`, enable at least one source before **Run Discovery** can retrieve jobs.
@@ -202,6 +217,7 @@ Codex Desktop is a separate application; it is not embedded in Electron.
 | --- | --- |
 | `npm run desktop:dev` | Start the Electron shell development workflow |
 | `npm run desktop:package` | Package the macOS arm64 Electron shell |
+| `npm run desktop:dmg` | Package the shell and create an unsigned macOS arm64 DMG |
 | `npm run dev` | Start the Dashboard for browser-based development |
 | `npm run discover` | Run job discovery manually from the command line |
 | `npm run db:migrate` | Create or migrate the local database |
