@@ -5,6 +5,8 @@ import { createContext, useContext, useMemo, useState, type FormEvent, type Reac
 type DiscoveryActionState = { pending:boolean; source:string|null; error:string|null };
 type DiscoveryResponse = { ok:boolean };
 
+export const requestDiscovery = () => fetch("/api/discover", { method:"POST", headers:{accept:"application/json"} });
+
 export function createDiscoverySubmitter(
   request:()=>Promise<DiscoveryResponse>,
   onState:(state:DiscoveryActionState)=>void,
@@ -17,10 +19,16 @@ export function createDiscoverySubmitter(
     onState({ pending:true, source, error:null });
     try {
       if (!(await request()).ok) throw new Error("Discovery request failed");
-      onSuccess();
     } catch {
       pending = false;
       onState({ pending:false, source, error:"Discovery failed. Please try again." });
+      return;
+    }
+    try {
+      onSuccess();
+    } catch {
+      pending = false;
+      onState({ pending:false, source, error:"Discovery completed. Refresh the Dashboard to see the result." });
     }
   };
 }
@@ -33,7 +41,7 @@ const DiscoveryActionsContext = createContext<{
 export function DiscoveryActions({ children }:{ children:ReactNode }) {
   const [state, setState] = useState<DiscoveryActionState>({ pending:false, source:null, error:null });
   const submit = useMemo(() => createDiscoverySubmitter(
-    () => fetch("/api/discover", { method:"POST" }),
+    requestDiscovery,
     setState,
     () => window.location.assign("/"),
   ), []);
@@ -56,7 +64,6 @@ export function DiscoveryFormView({ state, source, submit }:{ state:DiscoveryAct
 
   return <form action="/api/discover" method="post" className="discovery-form" onSubmit={onSubmit}>
     <button type="submit" disabled={state.pending}>{state.pending ? "Running Discovery…" : "Run Discovery"}</button>
-    {active && state.pending && <p className="discovery-feedback" role="status" aria-live="polite" aria-busy="true"><span className="discovery-spinner" aria-hidden="true" />Searching configured sources. This may take a little while.</p>}
-    {active && state.error && <p className="discovery-feedback discovery-error" role="alert">{state.error}</p>}
+    <div className="discovery-feedback-slot">{active && state.pending && <p className="discovery-feedback" role="status" aria-live="polite" aria-busy="true"><span className="discovery-spinner" aria-hidden="true" />Searching configured sources. This may take a little while.</p>}{active && state.error && <p className="discovery-feedback discovery-error" role="alert">{state.error}</p>}</div>
   </form>;
 }

@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { createDiscoverySubmitter, DiscoveryActions, DiscoveryForm, DiscoveryFormView } from "../app/discovery-actions";
+import { createDiscoverySubmitter, DiscoveryActions, DiscoveryForm, DiscoveryFormView, requestDiscovery } from "../app/discovery-actions";
 
 describe("Dashboard Discovery actions", () => {
   it("renders both entry points enabled with the initial label", () => {
@@ -10,6 +10,7 @@ describe("Dashboard Discovery actions", () => {
     expect(html.match(/Run Discovery/g)).toHaveLength(2);
     expect(html).not.toContain(" disabled");
     expect(html.match(/action=\\?"\/api\/discover/g)).toHaveLength(2);
+    expect(html.match(/discovery-feedback-slot/g)).toHaveLength(2);
   });
 
   it("shows pending feedback and disables both shared entry points", () => {
@@ -21,6 +22,18 @@ describe("Dashboard Discovery actions", () => {
     expect(html).toContain("Searching configured sources. This may take a little while.");
     expect(html).toContain('role="status"');
     expect(html).toContain('aria-busy="true"');
+  });
+
+  it("requests the JSON success contract", async () => {
+    const originalFetch = globalThis.fetch;
+    const fetchMock = vi.fn().mockResolvedValue({ ok:true });
+    globalThis.fetch = fetchMock;
+    try {
+      await requestDiscovery();
+      expect(fetchMock).toHaveBeenCalledWith("/api/discover", { method:"POST", headers:{accept:"application/json"} });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it("prevents a second form from submitting while the first request is pending, then completes on success", async () => {
@@ -53,5 +66,14 @@ describe("Dashboard Discovery actions", () => {
     await submit("card");
     expect(request).toHaveBeenCalledTimes(2);
     expect(onSuccess).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not label a successful request as a Discovery failure when navigation fails", async () => {
+    const onState = vi.fn();
+    const submit = createDiscoverySubmitter(async () => ({ ok:true }), onState, () => { throw new Error("navigation failed"); });
+
+    await submit("intro");
+    expect(onState).toHaveBeenLastCalledWith({ pending:false, source:"intro", error:"Discovery completed. Refresh the Dashboard to see the result." });
+    expect(renderToStaticMarkup(<DiscoveryFormView state={onState.mock.lastCall![0]} source="intro" submit={submit}/>)).toContain("Discovery completed. Refresh the Dashboard to see the result.");
   });
 });
