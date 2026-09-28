@@ -3,6 +3,7 @@ module.exports = {
     asar: true,
     appBundleId: "tech.yliu.jobsearchagent",
     executableName: "JobSearchAgent",
+    icon: "./assets/job-search-agent.icns",
   },
   makers: [
     { name: "@electron-forge/maker-zip", platforms: ["darwin"] },
