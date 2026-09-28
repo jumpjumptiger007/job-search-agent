@@ -21,7 +21,7 @@ The generated app is at `desktop/out/Job Search Agent-darwin-arm64/Job Search Ag
 
 ### Download v0.9.1 for macOS
 
-[Download the Job Search Agent v0.9.1 DMG](https://github.com/jumpjumptiger007/job-search-agent/releases/download/v0.9.1/Job%20Search%20Agent-0.9.1-arm64.dmg) (**Apple Silicon / arm64 only**). The app is unsigned and not notarized; macOS Gatekeeper may block first launch. If blocked, use **System Settings → Privacy & Security → Open Anyway**. This is not a clean-machine standalone installer: it requires an already prepared local `job-search-agent` workspace and the runtime dependencies below.
+[Download the Job Search Agent v0.9.1 DMG](https://github.com/jumpjumptiger007/job-search-agent/releases/download/v0.9.1/Job.Search.Agent-0.9.1-arm64.dmg) (**Apple Silicon / arm64 only**). The app is unsigned and not notarized; macOS Gatekeeper may block first launch. If blocked, use **System Settings → Privacy & Security → Open Anyway**. This is not a clean-machine standalone installer: it requires an already prepared local `job-search-agent` workspace and the runtime dependencies below.
 
 ### Build the unsigned DMG
 
