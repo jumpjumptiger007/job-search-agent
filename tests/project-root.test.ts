@@ -8,6 +8,7 @@ import { materialArtifacts } from "../lib/materials";
 import { runDiscovery } from "../lib/discovery";
 import { careerOpsPaths } from "../lib/integrations/career-ops/paths";
 import { discoverArbeitsagentur } from "../lib/integrations/career-ops/discovery";
+import { loadCareerOpsProvider, loadCareerOpsTransport } from "../lib/integrations/career-ops/providers";
 import { linkedinCliPath } from "../lib/integrations/linkedin";
 import { rendercvBin } from "../lib/integrations/rendercv";
 
@@ -79,11 +80,18 @@ describe("explicit workspace root", () => {
     const careerOps = path.join(workspace, "vendor", "career-ops");
     fs.mkdirSync(path.join(careerOps, "providers"), { recursive: true });
     fs.mkdirSync(path.join(careerOps, "modes"), { recursive: true });
+    fs.mkdirSync(path.join(workspace, "lib", "integrations", "career-ops"), { recursive: true });
     fs.mkdirSync(standalone, { recursive: true });
     fs.writeFileSync(path.join(careerOps, "VERSION"), "1.34.0\n");
     fs.writeFileSync(path.join(careerOps, "providers", "arbeitsagentur.mjs"), "export default { id: 'arbeitsagentur', fetch: async () => [{ title: 'Workspace Provider Job', company: 'Workspace Provider', url: 'https://www.arbeitsagentur.de/jobsuche/jobdetail/workspace-123' }] };\n");
+    fs.writeFileSync(path.join(careerOps, "providers", "_http.mjs"), "export async function fetchJson() { return { root: 'workspace' }; } export async function fetchText() { return 'workspace'; } export async function fetchResponse() { return new Response(); }\n");
+    fs.copyFileSync(path.join(originalCwd, "lib/integrations/career-ops/native-import.cjs"), path.join(workspace, "lib/integrations/career-ops/native-import.cjs"));
     process.chdir(standalone);
     process.env.JOB_AGENT_WORKSPACE_ROOT = workspace;
+
+    expect((await loadCareerOpsProvider("arbeitsagentur", workspace)).id).toBe("arbeitsagentur");
+    const nativeTransport = await loadCareerOpsTransport();
+    expect(await nativeTransport.fetchJson("https://example.invalid")).toEqual({ root:"workspace" });
 
     const transport = { fetchJson: async () => ({}), fetchText: async () => "", fetchResponse: async () => new Response() };
     const jobs = await discoverArbeitsagentur({ roleFamilies: ["Engineer"] }, 5, transport);

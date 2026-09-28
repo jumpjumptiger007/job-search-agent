@@ -1,8 +1,17 @@
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { careerOpsPaths } from "./paths";
 import { getProjectRoot } from "../../project-root";
+
+type CareerOpsModuleImporter = (specifier:string)=>Promise<Record<string,unknown>>;
+// The workspace CJS shim keeps this runtime import out of Next's static module transform.
+function importCareerOpsModule(specifier:string, projectRoot:string) {
+  const rootRequire = createRequire(path.join(projectRoot,"package.json"));
+  const loadNativeModule = rootRequire(path.join(projectRoot,"lib/integrations/career-ops/native-import.cjs")) as CareerOpsModuleImporter;
+  return loadNativeModule(specifier);
+}
 
 export type CareerOpsTransport = {
   fetchJson:(url:string, options?:object)=>Promise<unknown>;
@@ -20,7 +29,7 @@ export async function loadCareerOpsProvider(id:string, projectRoot = getProjectR
   const {providers} = careerOpsPaths(projectRoot);
   const file = path.join(providers,`${id}.mjs`);
   if (!fs.statSync(file,{throwIfNoEntry:false})?.isFile()) throw new Error(`Career Ops provider is missing: ${id}`);
-  const provider = (await import(pathToFileURL(file).href)).default as CareerOpsProvider;
+  const provider = (await importCareerOpsModule(pathToFileURL(file).href, projectRoot)).default as CareerOpsProvider;
   if (!provider || typeof provider.id !== "string" || !provider.id.trim() || typeof provider.fetch !== "function") throw new Error(`Invalid Career Ops provider contract: ${id}`);
   return provider;
 }
@@ -32,6 +41,6 @@ export function injectableCareerOpsTransport(transport:CareerOpsTransport) {
 
 export async function loadCareerOpsTransport(projectRoot = getProjectRoot()):Promise<CareerOpsTransport> {
   const {providers} = careerOpsPaths(projectRoot);
-  const http = await import(pathToFileURL(path.join(providers,"_http.mjs")).href);
+  const http = await importCareerOpsModule(pathToFileURL(path.join(providers,"_http.mjs")).href, projectRoot);
   return injectableCareerOpsTransport(http as CareerOpsTransport);
 }
