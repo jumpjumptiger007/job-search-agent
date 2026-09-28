@@ -1,5 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
+const loopbackHosts = new Set(["127.0.0.1", "localhost"]);
 
 function validateWorkspace(workspacePath) {
   try {
@@ -55,7 +56,8 @@ function saveWorkspacePath(userDataPath, workspacePath) {
 function isInternalUrl(candidate, localOrigin) {
   try {
     const url = new URL(candidate);
-    return url.protocol === "http:" && url.origin === localOrigin;
+    const backend = new URL(localOrigin);
+    return url.protocol === "http:" && backend.protocol === "http:" && url.port === backend.port && (url.hostname === backend.hostname || loopbackHosts.has(url.hostname) && loopbackHosts.has(backend.hostname));
   } catch {
     return false;
   }

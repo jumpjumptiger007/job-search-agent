@@ -44,11 +44,15 @@ test("prepares existing Next.js assets for its standalone server", (t) => {
   assert.equal(fs.readFileSync(path.join(workspace, ".next", "standalone", ".next", "static", "asset.js"), "utf8"), "asset");
 });
 
-test("distinguishes local app URLs from external URLs", () => {
+test("keeps active backend routes internal without trusting other origins", () => {
   const origin = "http://127.0.0.1:43127";
+  assert.equal(isInternalUrl(origin, origin), true);
   assert.equal(isInternalUrl(`${origin}/jobs/JOB-0001`, origin), true);
-  assert.equal(isInternalUrl("https://employer.example/jobs/1", origin), false);
+  assert.equal(isInternalUrl("http://localhost:43127/jobs/JOB-0001", origin), true);
+  assert.equal(isInternalUrl("http://localhost:43128/", origin), false);
   assert.equal(isInternalUrl("http://127.0.0.1:43128/", origin), false);
+  assert.equal(isInternalUrl("https://employer.example/jobs/1", origin), false);
+  assert.equal(isInternalUrl("http://employer.example:43127/", origin), false);
 });
 
 test("recognizes child processes exited by code or signal", () => {
