@@ -66,11 +66,10 @@ export function isGermanyEligible(job:DiscoveredJob){
   if(clearlyForeignRequirement(all,foreignResidency)||clearlyForeignRequirement(all,requiredForeignResidency)||clearlyForeignRequirement(all,explicitForeignRoleLocation)||clearlyForeignRequirement(all,foreignAuthorization)||clearlyForeignRequirement(all,existingForeignAuthorization)||clearlyForeignRequirement(all,requiredForeignAuthorization))return false;
   const normalizedLocation=location.trim();
   if(normalizedLocation&&/\b[a-z][a-z -]*-only\b/i.test(normalizedLocation)&&!compatibleRegion(normalizedLocation)&&!/^\s*(?:remote|hybrid)-only\b/i.test(normalizedLocation))return false;
-  if(normalizedLocation&&!/^\s*(?:remote|hybrid)\b/i.test(normalizedLocation)&&(foreignCountryAbbreviations.has(normalizedLocation.toLowerCase())||mentionsForeignCountry(normalizedLocation))&&!compatibleRegion(normalizedLocation))return false;
+  if(normalizedLocation&&!/[\/]|\bor\b/i.test(normalizedLocation)&&!compatibleRegion(normalizedLocation)&&(foreignCountryAbbreviations.has(normalizedLocation.toLowerCase())||mentionsForeignCountry(normalizedLocation)||normalizedLocation.split(/[,;•]/).some(part=>foreignCountryAbbreviations.has(part.trim().toLowerCase())||mentionsForeignCountry(part))))return false;
   if(normalizedLocation&&incompatibleStructuredRegion.test(normalizedLocation)&&!compatibleRegion(normalizedLocation))return false;
   const locationParts=normalizedLocation.split(/\s*(?:\/|\bor\b)\s*/i).filter(Boolean);
   if(locationParts.length>1&&locationParts.every(clearlyForeignStructuredLocation))return false;
-  if(normalizedLocation&&/,/.test(normalizedLocation)&&!compatibleRegion(normalizedLocation)&&!/multiple|global|world|\bor\b|\//i.test(normalizedLocation))return false;
   return true;
 }
 

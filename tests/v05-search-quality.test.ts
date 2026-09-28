@@ -49,6 +49,10 @@ describe("V0.5 Personio discovery",()=>{
 describe("V0.5 Germany eligibility",()=>{
   it.each([
     ["Germany","Berlin, Germany",""],
+    ["German city and region","Nürnberg, Mittelfranken",""],
+    ["German city and state","München, Bayern",""],
+    ["German city and state","Stuttgart, Baden-Württemberg",""],
+    ["German city and state","Frankfurt am Main, Hessen",""],
     ["Germany remote","Remote, Germany",""],
     ["EU","Remote","Open to candidates anywhere in the EU."],
     ["Europe","Remote","Europe-wide role."],
@@ -72,6 +76,9 @@ describe("V0.5 Germany eligibility",()=>{
     ["legal foreign authorization","Remote","Applicants must be legally authorized to work in Canada."],
     ["unrestricted foreign authorization","Remote","Applicants must have unrestricted work authorization in Canada."],
     ["remote foreign location","Remote, Canada",""],
+    ["remote US abbreviation","Remote, US",""],
+    ["Canada structured location","Toronto, Ontario, Canada",""],
+    ["US structured location","Austin, Texas, United States",""],
     ["Japan structured location","Tokyo, Japan",""],
     ["Australia structured location","Sydney, Australia • Melbourne, Australia",""],
     ["Singapore country location","Singapore",""],
