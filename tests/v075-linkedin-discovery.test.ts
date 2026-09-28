@@ -101,7 +101,7 @@ describe("v0.7.5 LinkedIn discovery", () => {
   it("isolates search failure from another configured source in runDiscovery", async () => {
     config("linkedin:\n  enabled: true\n  limit: 1\nproviders:\n  - type: greenhouse\n    board: acme\n    enabled: true\n");
     const originalFetch = globalThis.fetch; globalThis.fetch = async () => new Response(JSON.stringify({ jobs: [{ id: 8, title: "Engineer", absolute_url: "https://boards.greenhouse.io/acme/jobs/8", content: "TypeScript engineering in Berlin" }] }));
-    try { const result = await runDiscovery("config/search.yaml", { linkedinRunner: async () => { throw new Error("HTTP 429"); } }); expect(result).toMatchObject({ configured: 2, failures: 1, newJobs: 1 }); expect(result.errors[0]).toContain("LinkedIn: HTTP 429"); }
+    try { const result = await runDiscovery("config/search.yaml", { linkedinRunner: async () => { throw new Error("HTTP 429"); }, careerOpsProjectRoot: originalCwd }); expect(result).toMatchObject({ configured: 2, failures: 1, newJobs: 1 }); expect(result.errors[0]).toContain("LinkedIn: HTTP 429"); }
     finally { globalThis.fetch = originalFetch; }
   });
 

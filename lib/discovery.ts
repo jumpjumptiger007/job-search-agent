@@ -7,7 +7,7 @@ import type { DiscoveredJob, DiscoveryPreferences } from "./types";
 import { discoverArbeitsagentur,discoverGreenhouse,discoverLever,discoverPersonio,validatePersonioSource } from "./integrations/career-ops";
 import type { CareerOpsTransport } from "./integrations/career-ops";
 import { LinkedInAdapter, type LinkedInRunner } from "./integrations/linkedin";
-import { resolveProjectPath } from "./project-root";
+import { getProjectRoot, resolveProjectPath } from "./project-root";
 
 export interface DiscoveryAdapter { name:string; discover():Promise<DiscoveredJob[]>; }
 type WebConfig={enabled?:boolean;maxQueries?:number;maxRawCandidates?:number;maxProcessedCandidates?:number;endpoint?:string};
@@ -86,29 +86,29 @@ export const matchesPreferences=(job:DiscoveredJob,p:DiscoveryPreferences)=>{
   return !(p.postingAgeDays&&job.postedAt&&Date.parse(job.postedAt)<Date.now()-p.postingAgeDays*86400000);
 };
 
-export class GreenhouseAdapter implements DiscoveryAdapter{name="Greenhouse";constructor(private board:string,private limit?:number){}async discover(){return discoverGreenhouse(this.board,this.limit);}}
-export class LeverAdapter implements DiscoveryAdapter{name="Lever";constructor(private company:string,private limit?:number,private transport?:CareerOpsTransport){}async discover(){return discoverLever(this.company,this.limit,this.transport);}}
-export class PersonioAdapter implements DiscoveryAdapter {name="Personio";constructor(private source:unknown,private limit?:number,_language="en",private company?:string,private transport?:CareerOpsTransport){validatePersonioSource(source);}async discover(){return discoverPersonio(this.source,this.company,this.limit,this.transport);}}
+export class GreenhouseAdapter implements DiscoveryAdapter{name="Greenhouse";constructor(private board:string,private limit?:number,private projectRoot?:string){}async discover(){return discoverGreenhouse(this.board,this.limit,undefined,this.projectRoot);}}
+export class LeverAdapter implements DiscoveryAdapter{name="Lever";constructor(private company:string,private limit?:number,private transport?:CareerOpsTransport,private projectRoot?:string){}async discover(){return discoverLever(this.company,this.limit,this.transport,this.projectRoot);}}
+export class PersonioAdapter implements DiscoveryAdapter {name="Personio";constructor(private source:unknown,private limit?:number,_language="en",private company?:string,private transport?:CareerOpsTransport,private projectRoot?:string){validatePersonioSource(source);}async discover(){return discoverPersonio(this.source,this.company,this.limit,this.transport,this.projectRoot);}}
 export class BundesagenturAdapter implements DiscoveryAdapter {
   name="Bundesagentur für Arbeit";
-  constructor(private p:DiscoveryPreferences,private limit:number,private transport?:CareerOpsTransport){}
-  async discover(){return discoverArbeitsagentur(this.p,this.limit,this.transport);}
+  constructor(private p:DiscoveryPreferences,private limit:number,private transport?:CareerOpsTransport,private projectRoot?:string){}
+  async discover(){return discoverArbeitsagentur(this.p,this.limit,this.transport,this.projectRoot);}
 }
 export class WebSearchAdapter implements DiscoveryAdapter{name="Web search";constructor(private p:DiscoveryPreferences,private c:WebConfig){}async discover(){const out:DiscoveredJob[]=[];for(const role of(this.p.roleFamilies||[]).slice(0,positive(this.c.maxQueries,3))){const u=new URL(this.c.endpoint||"https://www.bing.com/search");u.searchParams.set("q",`${role} ${this.p.location||"Deutschland"} (site:careers.* OR site:jobs.* OR site:greenhouse.io OR site:lever.co)`);const init={headers:{"User-Agent":"job-search-agent/0.7.0 (local personal use)"}};let res:Response;try{res=await fetch(u,init);}catch{res=await fetch(u,init);}if(!res.ok)throw new Error(`Web search returned ${res.status}`);const html=await res.text();for(const m of html.matchAll(/<li[^>]+class=["'][^"']*\bb_algo\b[^"']*["'][^>]*>[\s\S]*?<h2[^>]*>\s*<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)){if(out.length>=positive(this.c.maxRawCandidates,30))break;const url=jobText(m[1]),title=jobText(m[2]);if(/^https?:\/\//.test(url))out.push({company:hostname(url)||"Unknown employer",title:title||"Job listing",url,sourceName:"Web search",ats:atsFor(url),description:title,discoveredVia:"web search"});}}return out.slice(0,positive(this.c.maxProcessedCandidates,15));}}
 export async function resolveOfficial(job:DiscoveredJob){const direct=/\/careers?\//i.test(new URL(job.url).pathname);if(job.discoveredVia!=="web search"&&!direct)return job;try{const res=await fetch(job.url,{headers:{"User-Agent":"job-search-agent/0.7.0 (local personal use)"}});if(!res.ok)return direct?{...job,sourceName:"Official careers page"}:job;const html=await res.text(),description=jobText(html).slice(0,20000),enriched=description.length>job.description.length?description:job.description,found=[...html.matchAll(/href=["']([^"']+)["']/gi)].map(m=>m[1]).find(x=>/greenhouse\.io|lever\.co|https?:\/\/[a-z0-9-]+\.jobs\.personio\.[a-z]{2,}(?:[/:?#]|$)|\/careers?\//i.test(x));if(!found||direct)return{...job,sourceName:"Official careers page",description:enriched};const url=new URL(found,job.url).href,ats=atsFor(url),tenant=tenantFor(url,ats),id=ats==="Personio"?new URL(url).pathname.match(/\/job\/([^/?#]+)/)?.[1]:undefined;return{...job,url,sourceName:ats||"Official careers page",ats,externalId:ats&&tenant?`${ats.toLowerCase()}:${tenant}:${id||url}`:job.externalId,description:enriched};}catch{return direct?{...job,sourceName:"Official careers page"}:job;}}
 export function loadDiscoveryPreferences(file=resolveProjectPath("config/preferences.yaml")):DiscoveryPreferences{const path=resolveProjectPath(file),source=fs.existsSync(path)?path:resolveProjectPath("config/preferences.example.yaml"),c=YAML.parse(fs.readFileSync(source,"utf8"))||{},p=c.discovery||c;return{roleFamilies:p.roleFamilies||c.candidate?.roleFamilies||[],location:p.location||c.candidate?.location,radiusKm:p.radiusKm,remotePreference:p.remotePreference||c.candidate?.remotePreference,seniority:p.seniority,workingLanguage:p.workingLanguage,otherLanguages:p.otherLanguages,postingAgeDays:p.postingAgeDays,limits:p.limits};}
 export function recordSource(job:DiscoveredJob){const ats=job.ats||atsFor(job.url);db().prepare("INSERT INTO source_registry(identity,company,domain,careers_url,ats,tenant,status,last_verified_at,discovered_via) VALUES(?,?,?,?,?, ?,'ACTIVE',CURRENT_TIMESTAMP,?) ON CONFLICT(identity) DO UPDATE SET company=excluded.company,domain=excluded.domain,careers_url=coalesce(excluded.careers_url,source_registry.careers_url),ats=coalesce(excluded.ats,source_registry.ats),tenant=coalesce(excluded.tenant,source_registry.tenant),status='ACTIVE',last_verified_at=CURRENT_TIMESTAMP,discovered_via=excluded.discovered_via").run(sourceIdentity(job.url,ats),job.company,hostname(job.url),ats?job.url:null,ats||null,tenantFor(job.url,ats)||null,job.discoveredVia||job.sourceName);}
-export async function runDiscovery(configPath="config/search.yaml", options:{linkedinRunner?:LinkedInRunner}={}){
-  const configFile=resolveProjectPath(configPath),d=db(),run=d.prepare("INSERT INTO discovery_runs(sources_attempted) VALUES(?)").run(""),p=loadDiscoveryPreferences(),c=fs.existsSync(configFile)?YAML.parse(fs.readFileSync(configFile,"utf8"))||{}:{},adapters:DiscoveryAdapter[]=[],configurationErrors:string[]=[];
+export async function runDiscovery(configPath="config/search.yaml", options:{linkedinRunner?:LinkedInRunner;careerOpsProjectRoot?:string}={}){
+  const configFile=resolveProjectPath(configPath),careerOpsProjectRoot=options.careerOpsProjectRoot||getProjectRoot(),d=db(),run=d.prepare("INSERT INTO discovery_runs(sources_attempted) VALUES(?)").run(""),p=loadDiscoveryPreferences(),c=fs.existsSync(configFile)?YAML.parse(fs.readFileSync(configFile,"utf8"))||{}:{},adapters:DiscoveryAdapter[]=[],configurationErrors:string[]=[];
   for(const x of Array.isArray(c.providers)?c.providers:[]){
     if(!x||typeof x!=="object")continue;
     if(!x.enabled)continue;
-    if(x.type==="greenhouse")adapters.push(new GreenhouseAdapter(x.board,x.limit));
-    if(x.type==="lever")adapters.push(new LeverAdapter(x.company,x.limit));
-    if(x.type==="personio")try{adapters.push(new PersonioAdapter(x.source??x.subdomain??x.tenant??x.url,x.limit,typeof x.language==="string"?x.language:"en",typeof x.company==="string"?x.company:undefined));}catch(error:any){configurationErrors.push(`Personio configuration: ${error.message}`);}
+    if(x.type==="greenhouse")adapters.push(new GreenhouseAdapter(x.board,x.limit,careerOpsProjectRoot));
+    if(x.type==="lever")adapters.push(new LeverAdapter(x.company,x.limit,undefined,careerOpsProjectRoot));
+    if(x.type==="personio")try{adapters.push(new PersonioAdapter(x.source??x.subdomain??x.tenant??x.url,x.limit,typeof x.language==="string"?x.language:"en",typeof x.company==="string"?x.company:undefined,undefined,careerOpsProjectRoot));}catch(error:any){configurationErrors.push(`Personio configuration: ${error.message}`);}
   }
   const max=positive(p.limits?.perRun,25);
-  if(c.bundesagentur?.enabled)adapters.push(new BundesagenturAdapter(p,Math.min(max,positive(c.bundesagentur.limit,max))));
+  if(c.bundesagentur?.enabled)adapters.push(new BundesagenturAdapter(p,Math.min(max,positive(c.bundesagentur.limit,max)),undefined,careerOpsProjectRoot));
   if(c.webSearch?.enabled)adapters.push(new WebSearchAdapter(p,c.webSearch));
   if(c.linkedin?.enabled)adapters.push(new LinkedInAdapter(p,Math.min(max,positive(c.linkedin.limit,5)),options.linkedinRunner));
   const stat={seen:0,newJobs:0,duplicates:0,failures:configurationErrors.length,blocked:0,upstreamCandidates:0,filteredCandidates:0,errors:configurationErrors};

@@ -7,6 +7,7 @@ import { loadFactualProfile } from "../lib/profile";
 import { materialArtifacts } from "../lib/materials";
 import { runDiscovery } from "../lib/discovery";
 import { careerOpsPaths } from "../lib/integrations/career-ops/paths";
+import { discoverArbeitsagentur } from "../lib/integrations/career-ops/discovery";
 import { linkedinCliPath } from "../lib/integrations/linkedin";
 import { rendercvBin } from "../lib/integrations/rendercv";
 
@@ -70,5 +71,24 @@ describe("explicit workspace root", () => {
 
     expect(db().name).toBe(path.join(temporary, "override.sqlite"));
     expect(loadFactualProfile()?.name).toBe("Override Candidate");
+  });
+
+  it("loads Bundesagentur Career Ops from the workspace when cwd is standalone", async () => {
+    temporary = fs.mkdtempSync(path.join(os.tmpdir(), "job-agent-career-ops-root-"));
+    const workspace = path.join(temporary, "workspace"), standalone = path.join(workspace, ".next", "standalone");
+    const careerOps = path.join(workspace, "vendor", "career-ops");
+    fs.mkdirSync(path.join(careerOps, "providers"), { recursive: true });
+    fs.mkdirSync(path.join(careerOps, "modes"), { recursive: true });
+    fs.mkdirSync(standalone, { recursive: true });
+    fs.writeFileSync(path.join(careerOps, "VERSION"), "1.34.0\n");
+    fs.writeFileSync(path.join(careerOps, "providers", "arbeitsagentur.mjs"), "export default { id: 'arbeitsagentur', fetch: async () => [{ title: 'Workspace Provider Job', company: 'Workspace Provider', url: 'https://www.arbeitsagentur.de/jobsuche/jobdetail/workspace-123' }] };\n");
+    process.chdir(standalone);
+    process.env.JOB_AGENT_WORKSPACE_ROOT = workspace;
+
+    const transport = { fetchJson: async () => ({}), fetchText: async () => "", fetchResponse: async () => new Response() };
+    const jobs = await discoverArbeitsagentur({ roleFamilies: ["Engineer"] }, 5, transport);
+
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({ company: "Workspace Provider", title: "Workspace Provider Job", sourceName: "Bundesagentur für Arbeit", ats: "BA" });
   });
 });

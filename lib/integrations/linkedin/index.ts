@@ -1,15 +1,31 @@
 import { execFile } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import type { DiscoveryPreferences, NormalizedJob } from "../../types";
 import { getProjectRoot, resolveProjectPath } from "../../project-root";
 
 export type LinkedInRunner = (args: string[]) => Promise<string>;
+type BunEnvironment = { BUN_BIN?:string; PATH?:string };
 
 export const linkedinCliPath = () => resolveProjectPath(".agents/skills/linkedin-search/cli/src/cli.ts");
 
+export function resolveBunExecutable(env:BunEnvironment=process.env as BunEnvironment, home=os.homedir()) {
+  const override=env.BUN_BIN?.trim();
+  if (override) return override;
+  const executable=process.platform === "win32" ? "bun.exe" : "bun";
+  const isExecutable=(file:string)=>{try{fs.accessSync(file,fs.constants.X_OK);return true;}catch{return false;}};
+  for (const directory of (env.PATH||"").split(path.delimiter)) {
+    const candidate=path.join(directory||process.cwd(),executable);
+    if (isExecutable(candidate)) return candidate;
+  }
+  const homeInstall=path.join(home,".bun","bin",executable);
+  return isExecutable(homeInstall) ? homeInstall : "bun";
+}
+
 export const runLinkedInCli: LinkedInRunner = args => new Promise((resolve, reject) => {
   const root = getProjectRoot(), cli = linkedinCliPath();
-  execFile("bun", ["run", cli, ...args], { cwd: root, timeout: 90000, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => {
+  execFile(resolveBunExecutable(), ["run", cli, ...args], { cwd: root, timeout: 90000, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => {
     if (error) reject(new Error(error.message.includes("ENOENT") ? "Bun is required for optional LinkedIn discovery" : `LinkedIn CLI: ${stderr.trim() || error.message}`));
     else resolve(stdout);
   });

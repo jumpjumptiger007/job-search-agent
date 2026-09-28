@@ -1,7 +1,7 @@
 import type { DiscoveredJob, DiscoveryPreferences } from "../../types";
-import path from "node:path";
 import { adaptCareerOpsJob } from "./normalize";
 import { injectableCareerOpsTransport,loadCareerOpsProvider,loadCareerOpsTransport,type CareerOpsTransport } from "./providers";
+import { getProjectRoot } from "../../project-root";
 
 const greenhouseJobId = (url:string, board:string) => {
   try {
@@ -11,8 +11,7 @@ const greenhouseJobId = (url:string, board:string) => {
 };
 
 /** Runs the pinned Greenhouse provider while retaining this application's identity rules. */
-export async function discoverGreenhouse(board:string, limit?:number, transport?:CareerOpsTransport):Promise<DiscoveredJob[]> {
-  const projectRoot = path.resolve(__dirname,"../../..");
+export async function discoverGreenhouse(board:string, limit?:number, transport?:CareerOpsTransport, projectRoot=getProjectRoot()):Promise<DiscoveredJob[]> {
   const provider = await loadCareerOpsProvider("greenhouse",projectRoot);
   const rows = await provider.fetch({name:board,api:`https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(board)}/jobs`},transport || await loadCareerOpsTransport(projectRoot));
   return rows.slice(0,limit).map(source => {
@@ -25,8 +24,7 @@ export async function discoverGreenhouse(board:string, limit?:number, transport?
 type LeverRawPosting = { hostedUrl?:unknown; id?:unknown; additionalPlain?:unknown; workplaceType?:unknown };
 
 /** Runs the pinned Lever provider once, retaining only host fields it deliberately omits. */
-export async function discoverLever(company:string, limit?:number, transport?:CareerOpsTransport):Promise<DiscoveredJob[]> {
-  const projectRoot = path.resolve(__dirname,"../../..");
+export async function discoverLever(company:string, limit?:number, transport?:CareerOpsTransport, projectRoot=getProjectRoot()):Promise<DiscoveredJob[]> {
   const provider = await loadCareerOpsProvider("lever",projectRoot);
   const base = transport || await loadCareerOpsTransport(projectRoot),rawByUrl=new Map<string,LeverRawPosting|null>();
   const wrapped = {...base,fetchJson:async(url:string,options?:object)=>{
@@ -60,8 +58,8 @@ function personioFields(xml:string,id:string) {
   return {description:personioText(field("jobDescriptions")||""),workModel:personioText(field("employmentType")||"")};
 }
 /** Runs the pinned Personio provider, observing its XML response only for accepted-row compatibility fields. */
-export async function discoverPersonio(source:unknown,company?:string,limit?:number,transport?:CareerOpsTransport):Promise<DiscoveredJob[]> {
-  const config=validatePersonioSource(source),projectRoot=path.resolve(__dirname,"../../.."),provider=await loadCareerOpsProvider("personio",projectRoot),base=transport||await loadCareerOpsTransport(projectRoot); let xml="";
+export async function discoverPersonio(source:unknown,company?:string,limit?:number,transport?:CareerOpsTransport,projectRoot=getProjectRoot()):Promise<DiscoveredJob[]> {
+  const config=validatePersonioSource(source),provider=await loadCareerOpsProvider("personio",projectRoot),base=transport||await loadCareerOpsTransport(projectRoot); let xml="";
   const wrapped={...base,fetchText:async(url:string,options?:object)=>{const body=await base.fetchText(url,options);if(url===`${config.url}/xml`)xml=body;return body;}};
   const rows=await provider.fetch({name:company||config.tenant,careers_url:config.url},injectableCareerOpsTransport(wrapped));
   return rows.slice(0,limit).map(sourceJob=>{const id=personioId(sourceJob.url,config.tenant),fields=id&&xml?personioFields(xml,id):undefined;const {job}=adaptCareerOpsJob({...sourceJob,description:fields?.description||sourceJob.description},provider,"Personio");return {...job,ats:"Personio",...(id?{externalId:`personio:${config.tenant}:${id}`} : {}),...(fields?.workModel?{workModel:fields.workModel}:{}),discoveredVia:"configured ATS"};});
@@ -83,10 +81,10 @@ const arbeitsagenturPostedAt = (value:unknown) => {
 };
 
 /** Runs the pinned Arbeitsagentur provider while keeping project preferences and identity local. */
-export async function discoverArbeitsagentur(preferences:DiscoveryPreferences,limit:number,transport?:CareerOpsTransport):Promise<DiscoveredJob[]> {
+export async function discoverArbeitsagentur(preferences:DiscoveryPreferences,limit:number,transport?:CareerOpsTransport,projectRoot=getProjectRoot()):Promise<DiscoveredJob[]> {
   const keywords=[...new Set((preferences.roleFamilies||[]).map(role=>role.trim()).filter(Boolean))];
   if (!keywords.length) return [];
-  const projectRoot=path.resolve(__dirname,"../../.."),provider=await loadCareerOpsProvider("arbeitsagentur",projectRoot),base=transport||await loadCareerOpsTransport(projectRoot),postedAtByReference=new Map<string,number|null>();
+  const provider=await loadCareerOpsProvider("arbeitsagentur",projectRoot),base=transport||await loadCareerOpsTransport(projectRoot),postedAtByReference=new Map<string,number|null>();
   const wrapped={...base,fetchJson:async(url:string,options?:object)=>{
     const body=await base.fetchJson(url,options);
     if (url.startsWith(`${arbeitsagenturApi}?`) && Array.isArray((body as any)?.ergebnisliste)) for (const raw of (body as any).ergebnisliste as ArbeitsagenturRaw[]) {
