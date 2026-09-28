@@ -1,11 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
+import { getStorageRoot } from "./project-root";
 
 export type FactualExperience = { employer: string; title: string; dates?: string; bullets?: string[] };
 export type FactualProfile = { name: string; email?: string; phone?: string; location?: string; summary?: string; skills?: string[]; competencies?: Record<string, string[]>; experience?: FactualExperience[]; education?: string[]; roleFamilies?: string[]; preferredLocations?: string[]; languages?: string[]; remotePreference?: string };
 
-const root = () => process.env.JOB_AGENT_STORAGE_ROOT || process.cwd();
 const strings = (value: unknown, name: string) => {
   if (value === undefined) return;
   if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) throw new Error(`Invalid factual profile: ${name} must be a string list`);
@@ -20,7 +20,7 @@ export function validateFactualProfile(value: unknown): asserts value is Factual
 }
 
 export function loadFactualProfile(): FactualProfile | undefined {
-  const file = path.join(root(), "profile", "profile.yaml");
+  const file = path.join(getStorageRoot(), "profile", "profile.yaml");
   if (!fs.existsSync(file)) return undefined;
   const profile = YAML.parse(fs.readFileSync(file, "utf8"));
   validateFactualProfile(profile);

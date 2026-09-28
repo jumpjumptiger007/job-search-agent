@@ -6,9 +6,10 @@ import { db } from "./db";
 import { readJobAnalysis, type TailoringPlan } from "./agent-workflow";
 import { loadFactualProfile, type FactualProfile } from "./profile";
 import { renderResume, type RenderCVRunner } from "./integrations/rendercv";
+import { getStorageRoot } from "./project-root";
 
 type Profile = FactualProfile;
-const root = () => process.env.JOB_AGENT_STORAGE_ROOT || process.cwd();
+const root = getStorageRoot;
 const artifactPaths={resumeYaml:["resume","rendercv.yaml"],resumePdf:["resume","resume.pdf"],letterPdf:["cover_letter","cover_letter.pdf"],letterDocx:["cover_letter","cover_letter.docx"],packagePdf:["package","application_package.pdf"]} as const;
 const artifactLabels={resumeYaml:"Resume RenderCV YAML",resumePdf:"Resume PDF",letterPdf:"Cover letter PDF",letterDocx:"Cover letter DOCX",packagePdf:"Application package PDF"} as const;
 export type MaterialArtifact=keyof typeof artifactPaths;

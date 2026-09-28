@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { careerOpsPaths } from "./paths";
+import { getProjectRoot } from "../../project-root";
 
 export type CareerOpsTransport = {
   fetchJson:(url:string, options?:object)=>Promise<unknown>;
@@ -14,7 +15,7 @@ export type CareerOpsProvider = { id:string; fetch:(entry:unknown,ctx:CareerOpsT
 
 const supportedProviderIds = new Set(["greenhouse","lever","personio","arbeitsagentur"]);
 
-export async function loadCareerOpsProvider(id:string, projectRoot = process.cwd()):Promise<CareerOpsProvider> {
+export async function loadCareerOpsProvider(id:string, projectRoot = getProjectRoot()):Promise<CareerOpsProvider> {
   if (!supportedProviderIds.has(id)) throw new Error(`Unsupported Career Ops provider: ${id}`);
   const {providers} = careerOpsPaths(projectRoot);
   const file = path.join(providers,`${id}.mjs`);
@@ -29,7 +30,7 @@ export function injectableCareerOpsTransport(transport:CareerOpsTransport) {
   return transport;
 }
 
-export async function loadCareerOpsTransport(projectRoot = process.cwd()):Promise<CareerOpsTransport> {
+export async function loadCareerOpsTransport(projectRoot = getProjectRoot()):Promise<CareerOpsTransport> {
   const {providers} = careerOpsPaths(projectRoot);
   const http = await import(pathToFileURL(path.join(providers,"_http.mjs")).href);
   return injectableCareerOpsTransport(http as CareerOpsTransport);

@@ -7,10 +7,11 @@ import YAML from "yaml";
 import { PDFDocument } from "pdf-lib";
 import { validateFactualProfile, type FactualProfile } from "../../profile";
 import { type JobAnalysis } from "../../agent-workflow";
+import { resolveProjectPath } from "../../project-root";
 
 export const RENDERCV_VERSION = "2.8";
 export const RENDERCV_THEME = "engineeringresumes";
-export const rendercvBin = () => process.env.RENDERCV_BIN || path.join(process.cwd(), ".rendercv-venv", "bin", "rendercv");
+export const rendercvBin = () => process.env.RENDERCV_BIN || resolveProjectPath(".rendercv-venv", "bin", "rendercv");
 export type RenderCVRunner = (argv: string[]) => void;
 
 export const runRenderCV: RenderCVRunner = (argv) => {

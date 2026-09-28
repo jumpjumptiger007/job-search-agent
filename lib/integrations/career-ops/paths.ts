@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { getProjectRoot } from "../../project-root";
 
 export const CAREER_OPS_VERSION = "1.34.0";
 export const CAREER_OPS_TAG = "career-ops-v1.34.0";
@@ -7,7 +8,7 @@ export const CAREER_OPS_COMMIT = "de7f7fe8fe65852b9743bbdce94f0304101a749e";
 
 export type CareerOpsPaths = { root:string; providers:string; modes:string };
 
-export function careerOpsPaths(projectRoot = process.cwd()): CareerOpsPaths {
+export function careerOpsPaths(projectRoot = getProjectRoot()): CareerOpsPaths {
   const root = path.resolve(projectRoot,"vendor/career-ops");
   if (!fs.statSync(root,{throwIfNoEntry:false})?.isDirectory()) throw new Error(`Career Ops submodule is missing: ${root}`);
   const paths = {root,providers:path.join(root,"providers"),modes:path.join(root,"modes")};

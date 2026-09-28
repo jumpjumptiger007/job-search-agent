@@ -1,11 +1,14 @@
 import { execFile } from "node:child_process";
 import path from "node:path";
 import type { DiscoveryPreferences, NormalizedJob } from "../../types";
+import { getProjectRoot, resolveProjectPath } from "../../project-root";
 
 export type LinkedInRunner = (args: string[]) => Promise<string>;
 
+export const linkedinCliPath = () => resolveProjectPath(".agents/skills/linkedin-search/cli/src/cli.ts");
+
 export const runLinkedInCli: LinkedInRunner = args => new Promise((resolve, reject) => {
-  const root = process.cwd(), cli = path.join(root, ".agents/skills/linkedin-search/cli/src/cli.ts");
+  const root = getProjectRoot(), cli = linkedinCliPath();
   execFile("bun", ["run", cli, ...args], { cwd: root, timeout: 90000, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => {
     if (error) reject(new Error(error.message.includes("ENOENT") ? "Bun is required for optional LinkedIn discovery" : `LinkedIn CLI: ${stderr.trim() || error.message}`));
     else resolve(stdout);

@@ -54,7 +54,7 @@ if (!app.requestSingleInstanceLock()) {
     const stderr = [];
     const child = spawn("/bin/zsh", ["-lc", 'exec node "$@"', "job-search-agent", path.join(root, ".next", "standalone", "server.js")], {
       cwd: root,
-      env: { ...process.env, HOSTNAME: "127.0.0.1", PORT: String(port) },
+      env: { ...process.env, HOSTNAME: "127.0.0.1", PORT: String(port), JOB_AGENT_WORKSPACE_ROOT: root },
       stdio: ["ignore", "ignore", "pipe"],
     });
     const state = { child, expectedStop: false, stderr };
