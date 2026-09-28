@@ -19,7 +19,11 @@ The v0.9 desktop package has these limitations:
 
 The generated app is at `desktop/out/Job Search Agent-darwin-arm64/Job Search Agent.app`. Packaging does not bundle the workspace, its data, or these runtimes.
 
-### Unsigned DMG distribution
+### Download v0.9.1 for macOS
+
+[Download the Job Search Agent v0.9.1 DMG](https://github.com/jumpjumptiger007/job-search-agent/releases/download/v0.9.1/Job%20Search%20Agent-0.9.1-arm64.dmg) (**Apple Silicon / arm64 only**). The app is unsigned and not notarized; macOS Gatekeeper may block first launch. If blocked, use **System Settings → Privacy & Security → Open Anyway**. This is not a clean-machine standalone installer: it requires an already prepared local `job-search-agent` workspace and the runtime dependencies below.
+
+### Build the unsigned DMG
 
 On an Apple Silicon Mac, install the desktop packaging dependencies and create the DMG:
 
@@ -28,7 +32,7 @@ npm ci --prefix desktop
 npm run desktop:dmg
 ```
 
-This packages the shell and produces `desktop/out/make/Job Search Agent-0.9.0-arm64.dmg`. The **Job Search Agent** volume contains `Job Search Agent.app` and an Applications-folder drag target. Mount the DMG, drag the app to Applications, and launch it through Finder or the Dock.
+This packages the shell and produces `desktop/out/make/Job Search Agent-0.9.1-arm64.dmg`. The **Job Search Agent** volume contains `Job Search Agent.app` and an Applications-folder drag target. Mount the DMG, drag the app to Applications, and launch it through Finder or the Dock.
 
 The DMG and app are **Apple Silicon (`arm64`) only, unsigned, and not notarized**. macOS Gatekeeper may block first launch; after attempting to open the app, you may need to allow it under **System Settings → Privacy & Security → Open Anyway**.
 
