@@ -19,7 +19,8 @@
     "discover": "tsx scripts/discover.ts",
     "export": "tsx scripts/export.ts",
     "desktop:dev": "npm --prefix desktop start",
-    "desktop:package": "npm --prefix desktop run package"
+    "desktop:package": "npm --prefix desktop run package",
+    "desktop:dmg": "npm --prefix desktop run dmg"
   },
   "dependencies": {
     "better-sqlite3": "12.4.1",

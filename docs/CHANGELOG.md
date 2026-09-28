@@ -2,6 +2,7 @@
 
 ## v0.9.0
 
+- Added `npm run desktop:dmg` to produce an unsigned, unnotarized Apple Silicon DMG with an Applications-folder drag target. Gatekeeper may require **System Settings → Privacy & Security → Open Anyway**. The app still requires an existing prepared workspace and its runtime dependencies; it is not a clean-machine standalone installer.
 - Added a macOS Electron desktop shell that runs the existing Next.js app while keeping the existing local workspace and data canonical.
 - Starts and stops the local backend with the app; Finder/LaunchServices second launches restore and focus the existing Dashboard.
 - Keeps internal navigation in the app and opens external employer links in the default browser. Discovery remains manually triggered.
