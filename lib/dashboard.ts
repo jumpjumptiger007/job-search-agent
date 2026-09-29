@@ -15,6 +15,11 @@ export function canonicalEvaluationScore(job: DashboardJob): number | undefined 
   }
 }
 
+export function isLowFitEvaluation(job: DashboardJob): boolean {
+  const score = canonicalEvaluationScore(job);
+  return score !== undefined && score < 3;
+}
+
 export function evaluationLabel(job: DashboardJob) {
   const score = canonicalEvaluationScore(job);
   return score === undefined ? "Not analyzed" : `${score} / 5`;
@@ -33,7 +38,7 @@ export function jobNextStep(job: DashboardJob, hasUsableAnalysis = canonicalEval
   if (job.review_status === "INTERESTED" && job.content_status === "INSUFFICIENT") return { stage: "Blocked", title: "Source content is insufficient", description: "Captured content is not sufficient for normal analysis or material generation.", action: "source" };
   if (job.review_status === "INTERESTED" && !hasUsableAnalysis) return { stage: "Analyze", title: "Analyze this job in Codex Desktop", description: "A validated analysis is required before application materials can be generated.", action: "analyze" };
   if (isReadyToApply(job)) return { stage: "Apply", title: "Ready for manual application", description: "Submit the application on the employer's website. Job Search Agent never submits applications automatically.", action: "apply" };
-  if (job.review_status === "INTERESTED" && job.material_status !== "READY") return job.material_status === "ERROR" ? { stage: "Materials", title: "Material generation failed", description: "Review the source and retry generation when ready.", action: "retry-materials" } : { stage: "Materials", title: "Generate application materials", description: "Validated analysis is ready for factual material generation.", action: "materials" };
+  if (job.review_status === "INTERESTED" && job.material_status !== "READY") return job.material_status === "ERROR" ? { stage: "Materials", title: "Material generation failed", description: "Review the source and retry generation when ready.", action: "retry-materials" } : hasUsableAnalysis && isLowFitEvaluation(job) ? { stage: "Materials", title: "Low fit — review gaps before generating materials", description: "This role scored below 3/5. Review the documented gaps before deciding whether to continue.", action: "materials" } : { stage: "Materials", title: "Generate application materials", description: "Validated analysis is ready for factual material generation.", action: "materials" };
   return { stage: "History", title: "No action required", description: "This job is retained in history.", action: "none" };
 }
 

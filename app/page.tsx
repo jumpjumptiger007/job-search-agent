@@ -27,7 +27,7 @@ export default function Home() {
   const actions = [
     [queues.review.length, "Review discovered jobs", "Choose Interested to continue evaluating a role, or Skip to remove it from active work."],
     [queues.analyze.filter((job) => jobNextStep(job, isUsable(job)).stage === "Analyze").length, "Analyze interested jobs in Codex Desktop", "A validated analysis is required before materials can be generated."],
-    [queues.materials.length, "Generate application materials", "Generate factual materials from a validated analysis."],
+    [queues.materials.length, "Review analyzed jobs / generate materials", "Review validated analysis and generate materials only for roles still worth pursuing."],
     [queues.apply.length, "Ready for manual application", "Open the employer posting and submit manually."],
   ].filter(([count]) => count as number > 0);
   return <DiscoveryActions><main>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canonicalEvaluationScore, codexPrompt, dashboardWorkflow, discoveryRunPresentation, discoverySummary, evaluationLabel, exportRows, jobNextStep, materialActionLabel, tailorCondition } from "../lib/dashboard";
+import { canonicalEvaluationScore, codexPrompt, dashboardWorkflow, discoveryRunPresentation, discoverySummary, evaluationLabel, exportRows, isLowFitEvaluation, jobNextStep, materialActionLabel, tailorCondition } from "../lib/dashboard";
 
 const job = (overrides: Record<string, any> = {}) => ({ job_id: "JOB-0001", company: "Acme", title: "Engineer", review_status: "INTERESTED", application_status: "NOT_APPLIED", material_status: "NOT_GENERATED", content_status: "SUBSTANTIVE", score: 97, analysis_json: JSON.stringify({ evaluation: { score: 4.5 } }), ...overrides });
 
@@ -72,5 +72,37 @@ describe("v0.7 Gate 8 dashboard presentation", () => {
     expect(dashboardWorkflow([scoreLooking], () => false).materials).toEqual([]);
     expect(jobNextStep(scoreLooking, true)).toMatchObject({ stage: "Materials", action: "materials" });
     expect(dashboardWorkflow([scoreLooking], () => true).materials).toEqual([scoreLooking]);
+  });
+
+  it("cautions on low-fit materials without blocking the Materials workflow", () => {
+    for (const score of [2, 2.5]) {
+      const lowFit = job({ job_id: `LOW-${score}`, analysis_json: JSON.stringify({ evaluation: { score } }) });
+      expect(isLowFitEvaluation(lowFit)).toBe(true);
+      expect(jobNextStep(lowFit)).toMatchObject({
+        stage: "Materials",
+        title: "Low fit — review gaps before generating materials",
+        description: expect.stringContaining("scored below 3/5"),
+        action: "materials",
+      });
+      expect(dashboardWorkflow([lowFit]).materials).toEqual([lowFit]);
+    }
+  });
+
+  it("keeps the ordinary Materials presentation at scores of 3 and above", () => {
+    for (const score of [3, 4.5, 5]) {
+      const normalFit = job({ analysis_json: JSON.stringify({ evaluation: { score } }) });
+      expect(isLowFitEvaluation(normalFit)).toBe(false);
+      expect(jobNextStep(normalFit)).toMatchObject({
+        stage: "Materials",
+        title: "Generate application materials",
+        action: "materials",
+      });
+    }
+  });
+
+  it("keeps missing or unusable analysis in Analyze", () => {
+    for (const analysis_json of [null, "not json", JSON.stringify({ evaluation: { score: 0 } })]) {
+      expect(jobNextStep(job({ analysis_json }))).toMatchObject({ stage: "Analyze", action: "analyze" });
+    }
   });
 });
