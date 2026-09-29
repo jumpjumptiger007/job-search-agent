@@ -147,6 +147,20 @@ if (!app.requestSingleInstanceLock()) {
     }
   }
 
+  function navigateBack() {
+    if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed() || !mainWindow.webContents.navigationHistory) return;
+    if (mainWindow.webContents.navigationHistory.canGoBack()) {
+      mainWindow.webContents.navigationHistory.goBack();
+    }
+  }
+
+  function navigateForward() {
+    if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed() || !mainWindow.webContents.navigationHistory) return;
+    if (mainWindow.webContents.navigationHistory.canGoForward()) {
+      mainWindow.webContents.navigationHistory.goForward();
+    }
+  }
+
   function installMenu() {
     const template = [
       {
@@ -155,6 +169,14 @@ if (!app.requestSingleInstanceLock()) {
           { role: "about" },
           { type: "separator" },
           { role: "quit" },
+        ],
+      },
+      { role: "editMenu" },
+      {
+        label: "Navigate",
+        submenu: [
+          { label: "Back", accelerator: "Command+[", click: navigateBack },
+          { label: "Forward", accelerator: "Command+]", click: navigateForward },
         ],
       },
       {
@@ -176,6 +198,10 @@ if (!app.requestSingleInstanceLock()) {
     });
     mainWindow = window;
     const allowedOrigin = origin;
+    window.on("swipe", (_event, direction) => {
+      if (direction === "right") navigateBack();
+      else if (direction === "left") navigateForward();
+    });
     window.webContents.on("will-navigate", (event, url) => {
       if (isInternalUrl(url, allowedOrigin)) return;
       event.preventDefault();
