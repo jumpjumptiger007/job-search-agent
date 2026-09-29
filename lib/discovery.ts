@@ -7,6 +7,7 @@ import type { DiscoveredJob, DiscoveryPreferences } from "./types";
 import { discoverArbeitsagentur,discoverGreenhouse,discoverLever,discoverPersonio,validatePersonioSource } from "./integrations/career-ops";
 import type { CareerOpsTransport } from "./integrations/career-ops";
 import { LinkedInAdapter, type LinkedInRunner } from "./integrations/linkedin";
+import { ArbeitnowAdapter, type ArbeitnowFetcher } from "./integrations/arbeitnow";
 import { getProjectRoot, resolveProjectPath } from "./project-root";
 
 export interface DiscoveryAdapter { name:string; discover():Promise<DiscoveredJob[]>; }
@@ -97,7 +98,7 @@ export class WebSearchAdapter implements DiscoveryAdapter{name="Web search";cons
 export async function resolveOfficial(job:DiscoveredJob){const direct=/\/careers?\//i.test(new URL(job.url).pathname);if(job.discoveredVia!=="web search"&&!direct)return job;try{const res=await fetch(job.url,{headers:{"User-Agent":"job-search-agent/0.7.0 (local personal use)"}});if(!res.ok)return direct?{...job,sourceName:"Official careers page"}:job;const html=await res.text(),description=jobText(html).slice(0,20000),enriched=description.length>job.description.length?description:job.description,found=[...html.matchAll(/href=["']([^"']+)["']/gi)].map(m=>m[1]).find(x=>/greenhouse\.io|lever\.co|https?:\/\/[a-z0-9-]+\.jobs\.personio\.[a-z]{2,}(?:[/:?#]|$)|\/careers?\//i.test(x));if(!found||direct)return{...job,sourceName:"Official careers page",description:enriched};const url=new URL(found,job.url).href,ats=atsFor(url),tenant=tenantFor(url,ats),id=ats==="Personio"?new URL(url).pathname.match(/\/job\/([^/?#]+)/)?.[1]:undefined;return{...job,url,sourceName:ats||"Official careers page",ats,externalId:ats&&tenant?`${ats.toLowerCase()}:${tenant}:${id||url}`:job.externalId,description:enriched};}catch{return direct?{...job,sourceName:"Official careers page"}:job;}}
 export function loadDiscoveryPreferences(file=resolveProjectPath("config/preferences.yaml")):DiscoveryPreferences{const path=resolveProjectPath(file),source=fs.existsSync(path)?path:resolveProjectPath("config/preferences.example.yaml"),c=YAML.parse(fs.readFileSync(source,"utf8"))||{},p=c.discovery||c;return{roleFamilies:p.roleFamilies||c.candidate?.roleFamilies||[],location:p.location||c.candidate?.location,radiusKm:p.radiusKm,remotePreference:p.remotePreference||c.candidate?.remotePreference,seniority:p.seniority,workingLanguage:p.workingLanguage,otherLanguages:p.otherLanguages,postingAgeDays:p.postingAgeDays,limits:p.limits};}
 export function recordSource(job:DiscoveredJob){const ats=job.ats||atsFor(job.url);db().prepare("INSERT INTO source_registry(identity,company,domain,careers_url,ats,tenant,status,last_verified_at,discovered_via) VALUES(?,?,?,?,?, ?,'ACTIVE',CURRENT_TIMESTAMP,?) ON CONFLICT(identity) DO UPDATE SET company=excluded.company,domain=excluded.domain,careers_url=coalesce(excluded.careers_url,source_registry.careers_url),ats=coalesce(excluded.ats,source_registry.ats),tenant=coalesce(excluded.tenant,source_registry.tenant),status='ACTIVE',last_verified_at=CURRENT_TIMESTAMP,discovered_via=excluded.discovered_via").run(sourceIdentity(job.url,ats),job.company,hostname(job.url),ats?job.url:null,ats||null,tenantFor(job.url,ats)||null,job.discoveredVia||job.sourceName);}
-export async function runDiscovery(configPath="config/search.yaml", options:{linkedinRunner?:LinkedInRunner;careerOpsProjectRoot?:string}={}){
+export async function runDiscovery(configPath="config/search.yaml", options:{linkedinRunner?:LinkedInRunner;arbeitnowFetcher?:ArbeitnowFetcher;careerOpsProjectRoot?:string}={}){
   const configFile=resolveProjectPath(configPath),careerOpsProjectRoot=options.careerOpsProjectRoot||getProjectRoot(),d=db(),run=d.prepare("INSERT INTO discovery_runs(sources_attempted) VALUES(?)").run(""),p=loadDiscoveryPreferences(),c=fs.existsSync(configFile)?YAML.parse(fs.readFileSync(configFile,"utf8"))||{}:{},adapters:DiscoveryAdapter[]=[],configurationErrors:string[]=[];
   for(const x of Array.isArray(c.providers)?c.providers:[]){
     if(!x||typeof x!=="object")continue;
@@ -108,6 +109,7 @@ export async function runDiscovery(configPath="config/search.yaml", options:{lin
   }
   const max=positive(p.limits?.perRun,25);
   if(c.bundesagentur?.enabled)adapters.push(new BundesagenturAdapter(p,Math.min(max,positive(c.bundesagentur.limit,max)),undefined,careerOpsProjectRoot));
+  if(c.arbeitnow?.enabled)adapters.push(new ArbeitnowAdapter(positive(c.arbeitnow.limit,50),options.arbeitnowFetcher));
   if(c.webSearch?.enabled)adapters.push(new WebSearchAdapter(p,c.webSearch));
   if(c.linkedin?.enabled)adapters.push(new LinkedInAdapter(p,Math.min(max,positive(c.linkedin.limit,5)),options.linkedinRunner));
   const stat={seen:0,newJobs:0,duplicates:0,failures:configurationErrors.length,blocked:0,upstreamCandidates:0,filteredCandidates:0,errors:configurationErrors};
