@@ -2,7 +2,7 @@
 
 ## Status
 
-**PARTIAL — implementation is committed; the required adapter live smoke is blocked.** Do not close Gate 2 or begin Gate 3 until the live smoke is authorized, completed, and independently reviewed.
+**READY FOR FINAL C2C REVIEW — implementation, automated checks, and the privacy-safe adapter live smoke are complete.** Do not close Gate 2 or begin Gate 3 until the Control Room returns PASS.
 
 ## Baseline and implementation
 
@@ -34,11 +34,12 @@ Workable's published account API and help material describe account-scoped job a
 - `npm run verify:core` — passed, 147 tests across 17 files.
 - `npm run typecheck` — passed in a temporary Git-archive copy with the full Gate 2 overlay, preserving the local `next-env.d.ts` change. An earlier temporary-copy attempt failed because its overlay omitted the changed `lib/discovery.ts`; the corrected full overlay passed.
 - `npm run lint` — passed with 0 errors and one pre-existing warning at `app/discovery-actions.tsx:46`.
-- Adapter live smoke — **UNVERIFIED / BLOCKED**. The direct adapter harness started, but the local shell could not resolve `jobs.workable.com` (`ENOTFOUND`). The network escalation was rejected by automatic approval review because it would transmit locally configured role-family preferences and location to the external endpoint without specific authorization. No successful adapter request, normalized live result, or in-memory preference-match count is claimed here.
+- Adapter live smoke — passed using only fixed synthetic inputs (`query=Software Engineer`, `location=Germany`); local discovery preferences were not read. The direct adapter made three GET requests to `https://jobs.workable.com/api/v1/jobs`; each returned HTTP 200 with 20 raw rows, `totalSize: 64`, and a `nextPageToken`. Requests two and three supplied `pageToken`; the adapter stopped at its three-page bound and scanned at most 50 rows. It normalized 49 jobs: 49 substantive, 0 insufficient. All 49 normalized URLs matched `https://jobs.workable.com/view/...`. The observed response keys and records matched the preflight assumptions. Three public samples were Software Engineer, Web Development / Titanom Solutions GmbH / Germering, Bavaria, Germany; Software Engineer / Walaris / Nuremberg, Bavaria, Germany; and (Lead) Senior CAP & BTP Software Engineer / SAP Fioneer / Frankfurt, Hessen, Germany. No full descriptions were retained in this handoff. A current personal-preference match count was not measured.
+- A preliminary attempt using the local preference-loading harness could not resolve `jobs.workable.com` in the normal shell (`ENOTFOUND`); its network escalation was rejected before any response. That attempt sent no Workable request. The successful retry used only the synthetic values above.
 
 ## Data and Git safety
 
-- The attempted live smoke used only the adapter directly. It did not call `runDiscovery()`, `ingest()`, or `recordSource()`, and did not write to SQLite or candidate/profile/application state.
+- The successful live smoke used only the adapter directly. It did not call `runDiscovery()`, `ingest()`, or `recordSource()`, and did not write to SQLite or candidate/profile/application state.
 - Deterministic ingestion tests used isolated temporary databases and cleaned them up.
 - `next-env.d.ts` remains the pre-existing unstaged change with SHA-256 `0f70629890b72a0a82e91972cc032c04b658b26c265373cb711cf576bfbf8fcc`; it is outside both commits.
 - `.DS_Store` remains untracked and is outside both commits.
@@ -46,4 +47,4 @@ Workable's published account API and help material describe account-scoped job a
 
 ## Independent review checkpoint
 
-The implementation and recorded automated validation are ready for C2C inspection. Gate 2 remains partial until the authorized direct adapter smoke completes and the Control Room returns PASS. Do not begin Gate 3, merge, push, tag, or release before then.
+The implementation and recorded validation are ready for final C2C inspection. The live smoke used synthetic inputs only and confirmed the public response shape and normalization assumptions. Do not begin Gate 3, merge, push, tag, or release before the Control Room returns PASS.
