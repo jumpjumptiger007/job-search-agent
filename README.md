@@ -47,13 +47,15 @@ This is not a clean-machine standalone installer. Prepare the existing `job-sear
 Discovery only searches sources enabled in your private `config/search.yaml`. The public `config/search.example.yaml` intentionally ships with every source disabled. After copying it to `config/search.yaml`, enable at least one source before **Run Discovery** can retrieve jobs.
 
 - **Bundesagentur für Arbeit** — general Germany-focused discovery.
+- **Arbeitnow** — public REST job-board source for general discovery; requires no extra runtime or authentication.
+- **Workable** — public Workable job search for Germany-oriented discovery; requires no employer slug or token.
 - **Bounded web search** — general discovery signal from a small number of web queries; results may include official careers pages.
 - **LinkedIn public jobs** — optional, low-volume discovery; requires Bun when enabled.
 - **Greenhouse** — optional target-company discovery; requires an explicit board.
 - **Lever** — optional target-company discovery; requires an explicit company.
 - **Personio** — optional target-company discovery; requires an explicit public careers source.
 
-Use Greenhouse, Lever, or Personio when you already want to follow a specific employer whose careers site uses that platform. These sources search only the configured board, company, or public careers source; they are not general searches across every employer using those ATS platforms. General discovery remains Bundesagentur and bounded web search, with LinkedIn available as an optional source. Configure target-company sources only for employers you specifically want to follow. There is no direct StepStone, Indeed, or XING integration.
+Use Greenhouse, Lever, or Personio when you already want to follow a specific employer whose careers site uses that platform. These sources search only the configured board, company, or public careers source; they are not general searches across every employer using those ATS platforms. General discovery can use Bundesagentur, Arbeitnow, Workable, and bounded Web Search, with LinkedIn public jobs available as an optional additional source. Configure target-company sources only for employers you specifically want to follow. There is no direct StepStone, Indeed, or XING integration.
 
 ## Requirements
 
@@ -85,14 +87,20 @@ python3 -m venv .rendercv-venv
    bundesagentur:
      enabled: true
 
-   webSearch:
+   arbeitnow:
      enabled: true
+
+   workable:
+     enabled: true
+
+   webSearch:
+     enabled: false
 
    linkedin:
      enabled: false
    ```
 
-   LinkedIn can be enabled later after installing Bun.
+   Bounded Web Search can be enabled as an additional source. LinkedIn can be enabled as an optional low-volume source after installing Bun.
 
 5. Prepare and check the local database and integrations:
 
@@ -197,13 +205,13 @@ discovery:
 
 ### Discovery providers
 
-Copy `config/search.example.yaml` to `config/search.yaml`. Its sources are all disabled by design, so enable at least one source before running discovery. The minimal starter shown in the first-run checklist enables Bundesagentur and bounded web search for Germany. To opt into low-volume LinkedIn public jobs, [install Bun](https://bun.sh/docs/installation), then set `linkedin.enabled: true` in your private file. Greenhouse, Lever, and Personio are optional target-company providers: use them for a specific employer you already want to follow, configuring an explicit Greenhouse board, Lever company, or public Personio careers source. They do not discover tenants or search every employer on those platforms; there is no need to configure many employers by default.
+Copy `config/search.example.yaml` to `config/search.yaml`. Its sources are all disabled by design, so enable at least one source before running discovery. Bundesagentur, Arbeitnow, and Workable are immediately usable general providers. Bounded Web Search is an optional bounded discovery source. LinkedIn public jobs are an optional low-volume source that requires Bun; [install Bun](https://bun.sh/docs/installation), then set `linkedin.enabled: true` in your private file. Greenhouse, Lever, and Personio are explicit target-company providers: use them for a specific employer you already want to follow, configuring an explicit Greenhouse board, Lever company, or public Personio careers source. They do not discover tenants or search every employer on those platforms; there is no need to configure many employers by default.
 
 ### ATS metadata and resume tailoring
 
 ATS detection and discovery are separate from resume tailoring. A recorded ATS type supports job discovery, source handling, and metadata; it does not change resume formatting for Greenhouse, Lever, Personio, or another ATS brand. For each job, Codex analysis selects factual skills, experience, and bullets from `profile/profile.yaml`, and identifies relevant keywords in that job description. RenderCV builds the resume from the selected profile facts using the project's fixed ATS-friendly design; it does not apply vendor-specific formatting or claim that a resume will pass every ATS.
 
-In short: general discovery uses Bundesagentur, bounded Web Search, and optionally LinkedIn; target-company discovery can use Greenhouse, Lever, or Personio; resume tailoring uses job-description-specific factual selection plus RenderCV, independently of ATS vendor.
+In short: general discovery uses Bundesagentur, Arbeitnow, Workable, and bounded Web Search, with LinkedIn public jobs as an optional additional source; target-company discovery can use Greenhouse, Lever, or Personio; resume tailoring uses job-description-specific factual selection plus RenderCV, independently of ATS vendor.
 
 ## Daily workflow
 
