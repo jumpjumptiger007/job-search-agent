@@ -21,6 +21,10 @@ bundesagentur:
 arbeitnow:
   enabled: false
   limit: 50
+# Public, Germany-targeted Workable search; no employer slug or token is required.
+workable:
+  enabled: false
+  limit: 50
 # Shallow, bounded discovery only. No platform-specific scraping.
 webSearch:
   enabled: false
