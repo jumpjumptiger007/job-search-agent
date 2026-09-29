@@ -198,6 +198,16 @@ describe("Workable Discovery", () => {
     expect(db().prepare("SELECT COUNT(*) AS count FROM jobs").get()).toEqual({ count: 1 });
   });
 
+  it("surfaces an incompatible successful response as a source failure", async () => {
+    writeConfig("workable:\n  enabled: true\n  limit: 10\n");
+    const result = await runDiscovery("config/search.yaml", {
+      workableFetcher: async () => new Response(JSON.stringify({ results: [] }), { status: 200 })
+    });
+
+    expect(result).toMatchObject({ configured: 1, failures: 1, seen: 0 });
+    expect(result.errors).toContain("Workable: Workable returned invalid JSON jobs");
+  });
+
   it("isolates Workable failure while another configured provider succeeds", async () => {
     writeConfig("arbeitnow:\n  enabled: true\n  limit: 10\nworkable:\n  enabled: true\n  limit: 10\n");
     const arbeitnowFetcher: ArbeitnowFetcher = async () => new Response(JSON.stringify({ data: [{
