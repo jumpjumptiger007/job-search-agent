@@ -70,8 +70,31 @@ export function dashboardWorkflow(jobs: DashboardJob[], hasUsableAnalysis = (job
   };
 }
 
+function discoverySourceDetails(run: Record<string, any>) {
+  const errors = String(run.errors || "").split("\n").filter(Boolean);
+  const remainingErrors = [...errors];
+  const sources = String(run.sources_attempted || "").split(", ").filter(Boolean).map(name => {
+    const index = remainingErrors.findIndex(error => error.startsWith(`${name}:`));
+    const error = index < 0 ? undefined : remainingErrors.splice(index, 1)[0].slice(name.length + 1).trim();
+    return { name, status: error === undefined ? "succeeded" : "failed", error };
+  });
+  return { sources, unmatchedErrors: remainingErrors };
+}
+
+export function discoverySourceOutcomes(run: Record<string, any>) {
+  return discoverySourceDetails(run).sources;
+}
+
+export function discoveryUnmatchedErrors(run: Record<string, any>) {
+  return discoverySourceDetails(run).unmatchedErrors;
+}
+
 export function discoverySummary(run: Record<string, any> | undefined) {
   if (!run) return undefined;
+  if (discoveryRunPresentation(run).status === "Failed") {
+    const sources = discoverySourceOutcomes(run);
+    return sources.length ? `0/${sources.length} sources succeeded` : "No usable sources configured";
+  }
   if (Number.isFinite(run.filtered_candidates) && Number.isFinite(run.accepted_candidates)) return `${run.filtered_candidates + run.accepted_candidates} checked · ${run.filtered_candidates} filtered · ${run.new_jobs} new · ${run.duplicates} duplicates`;
   return `${run.new_jobs} new · ${run.duplicates} duplicates`;
 }
@@ -79,6 +102,11 @@ export function discoverySummary(run: Record<string, any> | undefined) {
 export function discoveryRunPresentation(run: Record<string, any>) {
   const issues = Number(run.failures) > 0 || Boolean(String(run.errors || "").trim());
   if (!run.ended_at) return { status: "Running", message: "Discovery is still processing configured sources." };
+  const sources = discoverySourceOutcomes(run);
+  // Missing source information in historical rows retains the prior presentation.
+  if (run.sources_attempted != null && (!sources.length || sources.every(source => source.status === "failed"))) {
+    return { status: "Failed", message: sources.length ? "No attempted source completed successfully. Review the source errors below." : "Enable at least one usable source before running Discovery." };
+  }
   if (issues) return { status: "Completed with issues", message: "Provider or configuration issues occurred. Review the run details below." };
   if (run.new_jobs === 0) return { status: "Completed", message: "Discovery completed normally. Matching jobs may already have been filtered or deduplicated." };
   return { status: "Completed", message: run.sources_attempted || "Discovery completed." };

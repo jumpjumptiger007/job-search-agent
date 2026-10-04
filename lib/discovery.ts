@@ -12,6 +12,38 @@ import { WorkableAdapter, type WorkableFetcher } from "./integrations/workable";
 import { getProjectRoot, resolveProjectPath } from "./project-root";
 
 export interface DiscoveryAdapter { name:string; discover():Promise<DiscoveredJob[]>; }
+const transientTransportCodes = new Set([
+  "ENOTFOUND", "EAI_AGAIN", "ETIMEDOUT", "ECONNRESET",
+  "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT"
+]);
+
+export function isTransientDiscoveryError(error: unknown): boolean {
+  const visited = new Set<unknown>();
+  while (error && typeof error === "object" && !visited.has(error)) {
+    visited.add(error);
+    const detail = error as { code?: unknown; name?: unknown; message?: unknown; cause?: unknown };
+    const message = String(detail.message).trim();
+    // Application, configuration and parsing errors must not become retryable via their wording.
+    if (detail.name === "SyntaxError" || /\bHTTP\s+\d{3}\b|\b(?:configuration|validation|schema)\b|\b(?:malformed|invalid)\s+JSON\b/i.test(message)) return false;
+    if (transientTransportCodes.has(String(detail.code))) return true;
+    if (detail.name === "TimeoutError" || detail.name === "ConnectTimeoutError") return true;
+    if (/^(?:fetch failed|connect timeout(?: error)?|network request timed out)$/i.test(message)) return true;
+    // These adapters flatten transport causes into their provider/CLI messages.
+    if (/\b(?:ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNRESET)\b/.test(message)) return true;
+    if (/^arbeitsagentur: all [1-9]\d* keyword request\(s\) failed — ".*": fetch failed$/s.test(message)) return true;
+    error = detail.cause;
+  }
+  return false;
+}
+
+export async function discoverWithRetry(adapter: DiscoveryAdapter): Promise<DiscoveredJob[]> {
+  try { return await adapter.discover(); }
+  catch (error) {
+    if (!isTransientDiscoveryError(error)) throw error;
+    return adapter.discover();
+  }
+}
+
 type WebConfig={enabled?:boolean;maxQueries?:number;maxRawCandidates?:number;maxProcessedCandidates?:number;endpoint?:string};
 const jobText=(html:string="")=>html.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&").replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim();
 const positive=(value:unknown,fallback:number)=>Number.isInteger(value)&&Number(value)>0?Number(value):fallback;
@@ -95,7 +127,7 @@ export class BundesagenturAdapter implements DiscoveryAdapter {
   constructor(private p:DiscoveryPreferences,private limit:number,private transport?:CareerOpsTransport,private projectRoot?:string){}
   async discover(){return discoverArbeitsagentur(this.p,this.limit,this.transport,this.projectRoot);}
 }
-export class WebSearchAdapter implements DiscoveryAdapter{name="Web search";constructor(private p:DiscoveryPreferences,private c:WebConfig){}async discover(){const out:DiscoveredJob[]=[];for(const role of(this.p.roleFamilies||[]).slice(0,positive(this.c.maxQueries,3))){const u=new URL(this.c.endpoint||"https://www.bing.com/search");u.searchParams.set("q",`${role} ${this.p.location||"Deutschland"} (site:careers.* OR site:jobs.* OR site:greenhouse.io OR site:lever.co)`);const init={headers:{"User-Agent":"job-search-agent/0.7.0 (local personal use)"}};let res:Response;try{res=await fetch(u,init);}catch{res=await fetch(u,init);}if(!res.ok)throw new Error(`Web search returned ${res.status}`);const html=await res.text();for(const m of html.matchAll(/<li[^>]+class=["'][^"']*\bb_algo\b[^"']*["'][^>]*>[\s\S]*?<h2[^>]*>\s*<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)){if(out.length>=positive(this.c.maxRawCandidates,30))break;const url=jobText(m[1]),title=jobText(m[2]);if(/^https?:\/\//.test(url))out.push({company:hostname(url)||"Unknown employer",title:title||"Job listing",url,sourceName:"Web search",ats:atsFor(url),description:title,discoveredVia:"web search"});}}return out.slice(0,positive(this.c.maxProcessedCandidates,15));}}
+export class WebSearchAdapter implements DiscoveryAdapter{name="Web search";constructor(private p:DiscoveryPreferences,private c:WebConfig){}async discover(){const out:DiscoveredJob[]=[];for(const role of(this.p.roleFamilies||[]).slice(0,positive(this.c.maxQueries,3))){const u=new URL(this.c.endpoint||"https://www.bing.com/search");u.searchParams.set("q",`${role} ${this.p.location||"Deutschland"} (site:careers.* OR site:jobs.* OR site:greenhouse.io OR site:lever.co)`);const init={headers:{"User-Agent":"job-search-agent/0.7.0 (local personal use)"}};const res=await fetch(u,init);if(!res.ok)throw new Error(`Web search returned ${res.status}`);const html=await res.text();for(const m of html.matchAll(/<li[^>]+class=["'][^"']*\bb_algo\b[^"']*["'][^>]*>[\s\S]*?<h2[^>]*>\s*<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)){if(out.length>=positive(this.c.maxRawCandidates,30))break;const url=jobText(m[1]),title=jobText(m[2]);if(/^https?:\/\//.test(url))out.push({company:hostname(url)||"Unknown employer",title:title||"Job listing",url,sourceName:"Web search",ats:atsFor(url),description:title,discoveredVia:"web search"});}}return out.slice(0,positive(this.c.maxProcessedCandidates,15));}}
 export async function resolveOfficial(job:DiscoveredJob){const direct=/\/careers?\//i.test(new URL(job.url).pathname);if(job.discoveredVia!=="web search"&&!direct)return job;try{const res=await fetch(job.url,{headers:{"User-Agent":"job-search-agent/0.7.0 (local personal use)"}});if(!res.ok)return direct?{...job,sourceName:"Official careers page"}:job;const html=await res.text(),description=jobText(html).slice(0,20000),enriched=description.length>job.description.length?description:job.description,found=[...html.matchAll(/href=["']([^"']+)["']/gi)].map(m=>m[1]).find(x=>/greenhouse\.io|lever\.co|https?:\/\/[a-z0-9-]+\.jobs\.personio\.[a-z]{2,}(?:[/:?#]|$)|\/careers?\//i.test(x));if(!found||direct)return{...job,sourceName:"Official careers page",description:enriched};const url=new URL(found,job.url).href,ats=atsFor(url),tenant=tenantFor(url,ats),id=ats==="Personio"?new URL(url).pathname.match(/\/job\/([^/?#]+)/)?.[1]:undefined;return{...job,url,sourceName:ats||"Official careers page",ats,externalId:ats&&tenant?`${ats.toLowerCase()}:${tenant}:${id||url}`:job.externalId,description:enriched};}catch{return direct?{...job,sourceName:"Official careers page"}:job;}}
 export function loadDiscoveryPreferences(file=resolveProjectPath("config/preferences.yaml")):DiscoveryPreferences{const path=resolveProjectPath(file),source=fs.existsSync(path)?path:resolveProjectPath("config/preferences.example.yaml"),c=YAML.parse(fs.readFileSync(source,"utf8"))||{},p=c.discovery||c;return{roleFamilies:p.roleFamilies||c.candidate?.roleFamilies||[],location:p.location||c.candidate?.location,radiusKm:p.radiusKm,remotePreference:p.remotePreference||c.candidate?.remotePreference,seniority:p.seniority,workingLanguage:p.workingLanguage,otherLanguages:p.otherLanguages,postingAgeDays:p.postingAgeDays,limits:p.limits};}
 export function recordSource(job:DiscoveredJob){const ats=job.ats||atsFor(job.url);db().prepare("INSERT INTO source_registry(identity,company,domain,careers_url,ats,tenant,status,last_verified_at,discovered_via) VALUES(?,?,?,?,?, ?,'ACTIVE',CURRENT_TIMESTAMP,?) ON CONFLICT(identity) DO UPDATE SET company=excluded.company,domain=excluded.domain,careers_url=coalesce(excluded.careers_url,source_registry.careers_url),ats=coalesce(excluded.ats,source_registry.ats),tenant=coalesce(excluded.tenant,source_registry.tenant),status='ACTIVE',last_verified_at=CURRENT_TIMESTAMP,discovered_via=excluded.discovered_via").run(sourceIdentity(job.url,ats),job.company,hostname(job.url),ats?job.url:null,ats||null,tenantFor(job.url,ats)||null,job.discoveredVia||job.sourceName);}
@@ -116,11 +148,13 @@ export async function runDiscovery(configPath="config/search.yaml", options:{lin
   if(c.linkedin?.enabled)adapters.push(new LinkedInAdapter(p,Math.min(max,positive(c.linkedin.limit,5)),options.linkedinRunner));
   const stat={seen:0,newJobs:0,duplicates:0,failures:configurationErrors.length,blocked:0,upstreamCandidates:0,filteredCandidates:0,errors:configurationErrors};
   let remaining=max;
+  const attempted:string[]=[];
   for(const a of adapters){
     if(!remaining)break;
-    try{const candidates=await a.discover();stat.upstreamCandidates+=candidates.length;for(const candidate of candidates){if(!remaining)break;if(!matchesPreferences(candidate,p)){stat.filteredCandidates++;continue;}remaining--;const row=await resolveOfficial(candidate);if(!matchesPreferences(row,p)){stat.filteredCandidates++;continue;}stat.seen++;recordSource(row);const r=ingest(row);r.created?stat.newJobs++:stat.duplicates++;}}
+    attempted.push(a.name);
+    try{const candidates=await discoverWithRetry(a);stat.upstreamCandidates+=candidates.length;for(const candidate of candidates){if(!remaining)break;if(!matchesPreferences(candidate,p)){stat.filteredCandidates++;continue;}remaining--;const row=await resolveOfficial(candidate);if(!matchesPreferences(row,p)){stat.filteredCandidates++;continue;}stat.seen++;recordSource(row);const r=ingest(row);r.created?stat.newJobs++:stat.duplicates++;}}
     catch(error:any){stat.failures++;stat.errors.push(`${a.name}: ${error.message}`);}
   }
-  d.prepare("UPDATE discovery_runs SET ended_at=CURRENT_TIMESTAMP,sources_attempted=?,jobs_seen=?,new_jobs=?,duplicates=?,failures=?,blocked_sources=?,upstream_candidates=?,filtered_candidates=?,accepted_candidates=?,errors=? WHERE id=?").run(adapters.map(a=>a.name).join(", "),stat.seen,stat.newJobs,stat.duplicates,stat.failures,stat.blocked,stat.upstreamCandidates,stat.filteredCandidates,stat.seen,stat.errors.join("\n"),run.lastInsertRowid);
+  d.prepare("UPDATE discovery_runs SET ended_at=CURRENT_TIMESTAMP,sources_attempted=?,jobs_seen=?,new_jobs=?,duplicates=?,failures=?,blocked_sources=?,upstream_candidates=?,filtered_candidates=?,accepted_candidates=?,errors=? WHERE id=?").run(attempted.join(", "),stat.seen,stat.newJobs,stat.duplicates,stat.failures,stat.blocked,stat.upstreamCandidates,stat.filteredCandidates,stat.seen,stat.errors.join("\n"),run.lastInsertRowid);
   return{...stat,configured:adapters.length};
 }
