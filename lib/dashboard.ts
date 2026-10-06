@@ -70,6 +70,45 @@ export function dashboardWorkflow(jobs: DashboardJob[], hasUsableAnalysis = (job
   };
 }
 
+export function overviewCounts(queues: ReturnType<typeof dashboardWorkflow>) {
+  return {
+    review: queues.review.length,
+    analyze: queues.analyze.length,
+    materials: queues.materials.length,
+    ready: queues.apply.length,
+    active: queues.active.length,
+    attention: queues.review.length + queues.analyze.length + queues.materials.length + queues.apply.length,
+  };
+}
+
+export type JobsQueueFilter = "all" | "review" | "analyze" | "materials" | "ready";
+
+export function jobsForQueue(queues: ReturnType<typeof dashboardWorkflow>, filter: JobsQueueFilter) {
+  if (filter === "all") {
+    return [...queues.review, ...queues.analyze, ...queues.materials, ...queues.apply, ...queues.active];
+  }
+  const queue = { review: queues.review, analyze: queues.analyze, materials: queues.materials, ready: queues.apply }[filter];
+  return queue;
+}
+
+export function searchJobs(jobs: DashboardJob[], query: string) {
+  const needle = query.trim().toLocaleLowerCase();
+  if (!needle) return jobs;
+  return jobs.filter((job) => [job.job_id, job.company, job.title, job.location]
+    .some((value) => String(value || "").toLocaleLowerCase().includes(needle)));
+}
+
+export type HistoryFilter = "all" | "skipped" | "rejected" | "withdrawn";
+
+/** Refine only the canonical closed/history queue; active jobs cannot enter through a status filter. */
+export function historyJobs(jobs: DashboardJob[], filter: HistoryFilter = "all", query = "") {
+  const historical = dashboardWorkflow(jobs).historical;
+  const filtered = filter === "skipped" ? historical.filter((job) => job.review_status === "SKIPPED")
+    : filter === "rejected" ? historical.filter((job) => job.application_status === "REJECTED")
+      : filter === "withdrawn" ? historical.filter((job) => job.application_status === "WITHDRAWN") : historical;
+  return searchJobs(filtered, query);
+}
+
 function discoverySourceDetails(run: Record<string, any>) {
   const errors = String(run.errors || "").split("\n").filter(Boolean);
   const remainingErrors = [...errors];
@@ -107,9 +146,15 @@ export function discoveryRunPresentation(run: Record<string, any>) {
   if (run.sources_attempted != null && (!sources.length || sources.every(source => source.status === "failed"))) {
     return { status: "Failed", message: sources.length ? "No attempted source completed successfully. Review the source errors below." : "Enable at least one usable source before running Discovery." };
   }
-  if (issues) return { status: "Completed with issues", message: "Provider or configuration issues occurred. Review the run details below." };
-  if (run.new_jobs === 0) return { status: "Completed", message: "Discovery completed normally. Matching jobs may already have been filtered or deduplicated." };
-  return { status: "Completed", message: run.sources_attempted || "Discovery completed." };
+  if (issues) {
+    const succeeded = sources.filter(source => source.status === "succeeded").length;
+    const failed = sources.filter(source => source.status === "failed").length;
+    if (succeeded && failed) return { status: "Completed with issues", message: `Discovery partly succeeded. ${failed} ${failed === 1 ? "source failed" : "sources failed"} while ${succeeded === 1 ? "the remaining source completed" : "the remaining sources completed"}.` };
+    return { status: "Completed with issues", message: "Provider or configuration issues occurred. Review the run details below." };
+  }
+  if (run.new_jobs === 0) return { status: "Completed", message: "Discovery completed normally. No new jobs were added; matching roles may already have been filtered or deduplicated." };
+  const count = Number(run.new_jobs);
+  return { status: "Completed", message: `Discovery completed normally. ${count} ${count === 1 ? "job was" : "jobs were"} added to Review.` };
 }
 
 export function exportRows(jobs: DashboardJob[]) {

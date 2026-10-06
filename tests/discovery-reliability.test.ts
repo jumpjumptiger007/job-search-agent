@@ -39,6 +39,7 @@ describe("Discovery reliability", () => {
     expect(discoveryRunPresentation(completed("Arbeitnow, Workable")).status).toBe("Completed");
     const partial = completed("Arbeitnow, Workable", "Workable: HTTP 503");
     expect(discoveryRunPresentation(partial).status).toBe("Completed with issues");
+    expect(discoveryRunPresentation(partial).message).toContain("Discovery partly succeeded");
     expect(discoverySourceOutcomes(partial)).toEqual([
       { name: "Arbeitnow", status: "succeeded", error: undefined },
       { name: "Workable", status: "failed", error: "HTTP 503" }

@@ -73,7 +73,7 @@ describe("Dashboard Discovery actions", () => {
     const submit = createDiscoverySubmitter(async () => ({ ok:true }), onState, () => { throw new Error("navigation failed"); });
 
     await submit("intro");
-    expect(onState).toHaveBeenLastCalledWith({ pending:false, source:"intro", error:"Discovery completed. Refresh the Dashboard to see the result." });
-    expect(renderToStaticMarkup(<DiscoveryFormView state={onState.mock.lastCall![0]} source="intro" submit={submit}/>)).toContain("Discovery completed. Refresh the Dashboard to see the result.");
+    expect(onState).toHaveBeenLastCalledWith({ pending:false, source:"intro", error:"Discovery completed. Refresh this page to see the result." });
+    expect(renderToStaticMarkup(<DiscoveryFormView state={onState.mock.lastCall![0]} source="intro" submit={submit}/>)).toContain("Discovery completed. Refresh this page to see the result.");
   });
 });

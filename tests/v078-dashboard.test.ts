@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canonicalEvaluationScore, codexPrompt, dashboardWorkflow, discoveryRunPresentation, discoverySummary, evaluationLabel, exportRows, isLowFitEvaluation, jobNextStep, materialActionLabel, tailorCondition } from "../lib/dashboard";
+import { canonicalEvaluationScore, codexPrompt, dashboardWorkflow, discoveryRunPresentation, discoverySummary, evaluationLabel, exportRows, historyJobs, isLowFitEvaluation, jobNextStep, jobsForQueue, materialActionLabel, overviewCounts, searchJobs, tailorCondition } from "../lib/dashboard";
 
 const job = (overrides: Record<string, any> = {}) => ({ job_id: "JOB-0001", company: "Acme", title: "Engineer", review_status: "INTERESTED", application_status: "NOT_APPLIED", material_status: "NOT_GENERATED", content_status: "SUBSTANTIVE", score: 97, analysis_json: JSON.stringify({ evaluation: { score: 4.5 } }), ...overrides });
 
@@ -25,6 +25,55 @@ describe("v0.7 Gate 8 dashboard presentation", () => {
     expect(queues.apply).toEqual([ready]);
     expect(queues.active).toEqual([active]);
     expect(queues.historical).toEqual([closed]);
+  });
+
+  it("summarizes Overview counts from the existing workflow queues", () => {
+    const queues = dashboardWorkflow([
+      job({ job_id: "JOB-0010", review_status: "PENDING" }),
+      job({ job_id: "JOB-0011", analysis_json: null }),
+      job({ job_id: "JOB-0012", content_status: "INSUFFICIENT" }),
+      job({ job_id: "JOB-0013", material_status: "NOT_GENERATED" }),
+      job({ job_id: "JOB-0014", material_status: "READY" }),
+      job({ job_id: "JOB-0015", application_status: "INTERVIEW" }),
+      job({ job_id: "JOB-0016", application_status: "REJECTED" }),
+    ]);
+    expect(overviewCounts(queues)).toEqual({ review: 1, analyze: 2, materials: 1, ready: 1, active: 1, attention: 5 });
+  });
+
+  it("filters Jobs from canonical queues and searches permanent ID, role, company, and location", () => {
+    const review = job({ job_id: "JOB-0020", review_status: "PENDING", location: "Berlin" });
+    const analyze = job({ job_id: "JOB-0021", analysis_json: null, company: "Northwind" });
+    const blocked = job({ job_id: "JOB-0022", content_status: "INSUFFICIENT" });
+    const materials = job({ job_id: "JOB-0023", material_status: "ERROR" });
+    const ready = job({ job_id: "JOB-0024", material_status: "READY" });
+    const active = job({ job_id: "JOB-0025", application_status: "INTERVIEW" });
+    const closed = job({ job_id: "JOB-0026", application_status: "REJECTED" });
+    const queues = dashboardWorkflow([review, analyze, blocked, materials, ready, active, closed], (item) => item.job_id !== analyze.job_id);
+
+    expect(jobsForQueue(queues, "review")).toEqual([review]);
+    expect(jobsForQueue(queues, "analyze")).toEqual([analyze, blocked]);
+    expect(jobsForQueue(queues, "materials")).toEqual([materials]);
+    expect(jobsForQueue(queues, "ready")).toEqual([ready]);
+    expect(jobsForQueue(queues, "all")).toEqual([review, analyze, blocked, materials, ready, active]);
+    expect(searchJobs([review, analyze], "job-0020")).toEqual([review]);
+    expect(searchJobs([review, analyze], "northwind")).toEqual([analyze]);
+    expect(searchJobs([review, analyze], "berlin")).toEqual([review]);
+    expect(searchJobs([review, analyze], "engineer")).toEqual([review, analyze]);
+    expect(jobsForQueue(queues, "all")).not.toContain(closed);
+  });
+
+  it("filters History only after canonical closed-record classification", () => {
+    const skipped = job({ job_id: "JOB-0030", review_status: "SKIPPED", title: "Skipped role" });
+    const rejected = job({ job_id: "JOB-0031", application_status: "REJECTED", company: "Northwind" });
+    const withdrawn = job({ job_id: "JOB-0032", application_status: "WITHDRAWN", location: "Berlin" });
+    const active = job({ job_id: "JOB-0033", application_status: "INTERVIEW" });
+    const pending = job({ job_id: "JOB-0034", review_status: "PENDING" });
+
+    expect(historyJobs([skipped, rejected, withdrawn, active, pending])).toEqual([skipped, rejected, withdrawn]);
+    expect(historyJobs([skipped, rejected, withdrawn, active, pending], "skipped")).toEqual([skipped]);
+    expect(historyJobs([skipped, rejected, withdrawn, active, pending], "rejected", "northwind")).toEqual([rejected]);
+    expect(historyJobs([skipped, rejected, withdrawn, active, pending], "withdrawn", "berlin")).toEqual([withdrawn]);
+    expect(historyJobs([skipped, rejected, withdrawn, active, pending], "all", "JOB-0033")).toEqual([]);
   });
 
   it("exports the canonical score with a user-facing 1–5 column", () => {
@@ -60,7 +109,8 @@ describe("v0.7 Gate 8 dashboard presentation", () => {
   });
 
   it("distinguishes normal zero-new completion from completed runs with issues", () => {
-    expect(discoveryRunPresentation({ ended_at: "2026-09-27", new_jobs: 0, failures: 0, errors: "" })).toMatchObject({ status: "Completed", message: expect.stringContaining("completed normally") });
+    expect(discoveryRunPresentation({ ended_at: "2026-09-27", new_jobs: 0, failures: 0, errors: "" })).toMatchObject({ status: "Completed", message: expect.stringContaining("No new jobs were added") });
+    expect(discoveryRunPresentation({ ended_at: "2026-09-27", new_jobs: 4, failures: 0, errors: "" })).toMatchObject({ status: "Completed", message: expect.stringContaining("4 jobs were added to Review") });
     expect(discoveryRunPresentation({ ended_at: "2026-09-27", new_jobs: 0, failures: 1, errors: "Provider failed" })).toMatchObject({ status: "Completed with issues" });
     expect(discoveryRunPresentation({ ended_at: "2026-09-27", new_jobs: 0, failures: 1, errors: "Provider failed" }).message).not.toContain("completed normally");
   });

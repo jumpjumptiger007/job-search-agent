@@ -1,5 +1,8 @@
 import "./globals.css";
-import Link from "next/link";
+import AppShell from "./components/app-shell";
 import TrackpadNavigation from "./trackpad-navigation";
-export const metadata={title:"Job Search Agent",description:"Local-first job workspace"};
-export default function Layout({children}:{children:React.ReactNode}){return <html lang="en"><body><TrackpadNavigation /><header><Link href="/">Job Search Agent</Link><span>Local workspace</span></header>{children}</body></html>}
+export const metadata = { title: "Job Search Agent", description: "Local-first job workspace" };
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return <html lang="en"><body><TrackpadNavigation /><AppShell>{children}</AppShell></body></html>;
+}

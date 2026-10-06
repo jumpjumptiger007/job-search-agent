@@ -17,6 +17,10 @@ The v0.9 desktop package has these limitations:
 - Requires the existing Python/RenderCV environment for resume generation
 - Bun is optional and needed only when LinkedIn discovery is enabled
 
+### Dashboard navigation
+
+The local dashboard separates Overview, Jobs, Applications, Discovery, History, and Exports in its sidebar. Appearance can follow the system or be set to Light or Dark on this device. Discovery displays the configured sources and recent runs; source settings are read-only in the UI and continue to be managed in the local `config/search.yaml` file.
+
 The generated app is at `desktop/out/Job Search Agent-darwin-arm64/Job Search Agent.app`. Packaging does not bundle the workspace, its data, or these runtimes.
 
 ### Download v0.9.1 for macOS
@@ -118,7 +122,7 @@ python3 -m venv .rendercv-venv
    ```
 
 7. Launch `Job Search Agent.app` and select the local repository workspace when prompted.
-8. Run **Run Discovery** manually in the Dashboard.
+8. Run **Run Discovery** manually from the Discovery page (or Overview).
 9. Use Codex Desktop for job analysis and tailoring through the Dashboard's **Copy Codex prompt** action.
 
 ### Normal desktop use

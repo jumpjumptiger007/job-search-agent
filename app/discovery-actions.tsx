@@ -28,7 +28,7 @@ export function createDiscoverySubmitter(
       onSuccess();
     } catch {
       pending = false;
-      onState({ pending:false, source, error:"Discovery completed. Refresh the Dashboard to see the result." });
+      onState({ pending:false, source, error:"Discovery completed. Refresh this page to see the result." });
     }
   };
 }
@@ -38,13 +38,13 @@ const DiscoveryActionsContext = createContext<{
   submit:(source:string)=>Promise<void>;
 }|null>(null);
 
-export function DiscoveryActions({ children }:{ children:ReactNode }) {
+export function DiscoveryActions({ children, successHref = "/" }:{ children:ReactNode; successHref?: string }) {
   const [state, setState] = useState<DiscoveryActionState>({ pending:false, source:null, error:null });
   const submit = useMemo(() => createDiscoverySubmitter(
     requestDiscovery,
     setState,
-    () => window.location.assign("/"),
-  ), []);
+    () => window.location.assign(successHref),
+  ), [successHref]);
 
   return <DiscoveryActionsContext.Provider value={{ state, submit }}>{children}</DiscoveryActionsContext.Provider>;
 }

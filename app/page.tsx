@@ -1,45 +1,39 @@
 import { readUsableJobAnalysis } from "@/lib/agent-workflow";
-import { dashboardWorkflow, discoveryRunPresentation, discoverySourceOutcomes, discoveryUnmatchedErrors, discoverySummary, evaluationLabel, jobNextStep } from "@/lib/dashboard";
-import { db } from "@/lib/db";
+import { dashboardWorkflow, overviewCounts } from "@/lib/dashboard";
 import { listJobs } from "@/lib/jobs";
 import { DiscoveryActions, DiscoveryForm } from "./discovery-actions";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-const badge = (value: string) => <span className={`badge badge-${value.toLowerCase()}`}>{value.replaceAll("_", " ")}</span>;
+const workGroups = [
+  { key: "review", title: "Review", description: (count: number) => `${count} ${count === 1 ? "job needs" : "jobs need"} a decision`, href: "/jobs?filter=review" },
+  { key: "analyze", title: "Analyze", description: (count: number) => `${count} ${count === 1 ? "job needs" : "jobs need"} validated Codex analysis`, href: "/jobs?filter=analyze" },
+  { key: "materials", title: "Materials", description: (count: number) => `${count} ${count === 1 ? "job needs" : "jobs need"} materials prepared`, href: "/jobs?filter=materials" },
+  { key: "ready", title: "Apply", description: (count: number) => `${count} ${count === 1 ? "application is" : "applications are"} ready`, href: "/applications?filter=ready" },
+] as const;
 
-function JobItem({ job, isUsable }: { job: any; isUsable: (job: any) => boolean }) {
-  const next = jobNextStep(job, isUsable(job));
-  return <a className="item" href={`/jobs/${job.job_id}`}>
-    <span className="job-id">{job.job_id}</span>
-    <span className="item-copy"><b>{job.company} · {job.title}</b><small>{[job.location, job.work_model].filter(Boolean).join(" · ") || "Location and work model not stated"}</small></span>
-    <span className="item-meta">{evaluationLabel(job)}</span>
-    <span className="item-next"><span>{badge(next.stage)}</span><small>{next.title}</small></span>
-  </a>;
-}
+export default function Overview() {
+  const jobs = listJobs();
+  const usableJobIds = new Set(jobs.filter((job) => Boolean(readUsableJobAnalysis(job.job_id))).map((job) => job.job_id));
+  const queues = dashboardWorkflow(jobs, (job) => usableJobIds.has(job.job_id));
+  const counts = overviewCounts(queues);
+  const total = jobs.length;
+  const priorityGroups = workGroups.filter(({ key }) => counts[key] > 0);
 
-function Queue({ title, items, emptyTitle, emptyText, isUsable }: { title: string; items: any[]; emptyTitle: string; emptyText: string; isUsable: (job: any) => boolean }) {
-  return <section className="queue"><div className="section-heading"><div><p className="eyebrow">WORK QUEUE</p><h2>{title}</h2></div><span className="queue-count">{items.length}</span></div>{items.length ? <div className="item-group">{items.map((job) => <JobItem key={job.job_id} job={job} isUsable={isUsable} />)}</div> : <div className="empty"><b>{emptyTitle}</b><span>{emptyText}</span></div>}</section>;
-}
+  return <DiscoveryActions><main className="overview-page">
+    <section className="overview-heading"><div><h2>Current workload and anything that needs action.</h2><p>{counts.attention} {counts.attention === 1 ? "item needs" : "items need"} attention</p></div><DiscoveryForm source="overview" /></section>
+    <p className="overview-breakdown">{[["review", "review"], ["analyze", "analyze"], ["materials", "materials"], ["ready", "ready to apply"]].filter(([key]) => counts[key as keyof typeof counts] > 0).map(([key, label]) => `${counts[key as keyof typeof counts]} ${label}`).join(" · ") || "No active work needs attention"}</p>
 
-export default function Home() {
-  const jobs = listJobs(), usableJobIds = new Set(jobs.filter((job) => Boolean(readUsableJobAnalysis(job.job_id))).map((job) => job.job_id)), isUsable = (job: any) => usableJobIds.has(job.job_id), queues = dashboardWorkflow(jobs, isUsable), runs = db().prepare("SELECT * FROM discovery_runs ORDER BY id DESC LIMIT 3").all() as any[], latestRun = runs[0], latestPresentation = latestRun && discoveryRunPresentation(latestRun);
-  const actions = [
-    [queues.review.length, "Review discovered jobs", "Choose Interested to continue evaluating a role, or Skip to remove it from active work."],
-    [queues.analyze.filter((job) => jobNextStep(job, isUsable(job)).stage === "Analyze").length, "Analyze interested jobs in Codex Desktop", "A validated analysis is required before materials can be generated."],
-    [queues.materials.length, "Review analyzed jobs / generate materials", "Review validated analysis and generate materials only for roles still worth pursuing."],
-    [queues.apply.length, "Ready for manual application", "Open the employer posting and submit manually."],
-  ].filter(([count]) => count as number > 0);
-  return <DiscoveryActions><main>
-    <section className="dashboard-intro"><div><p className="eyebrow">LOCAL JOB OPERATIONS</p><h1>Dashboard</h1><p className="muted">Local workflow for discovering, preparing and tracking applications.</p></div><DiscoveryForm source="intro" /></section>
-    <section className="workflow-strip" aria-label="Job search workflow"><p>Discovery → Your decision → Codex Desktop → Generate → Apply manually</p><div>{[["Discover", latestRun ? `Last: ${latestRun.new_jobs} new` : "Run discovery"], ["Review", `${queues.review.length} jobs`], ["Analyze", `${queues.analyze.filter((job) => jobNextStep(job, isUsable(job)).stage === "Analyze").length} jobs`], ["Materials", `${queues.materials.length} jobs`], ["Apply", `${queues.apply.length} ready`]].map(([stage, state]) => <section className="workflow-step" key={stage}><b>{stage}</b><small>{state}</small></section>)}</div></section>
-    <section className="next-actions"><div className="section-heading"><div><p className="eyebrow">PRIORITY WORK</p><h2>Next actions</h2></div></div>{actions.length ? <div className="item-group">{actions.map(([count, title, detail]) => <div className="item" key={title}><strong className="action-count">{count}</strong><span className="item-copy"><b>{title}</b><small>{detail}</small></span></div>)}</div> : <div className="empty"><b>No current actions</b><span>Run discovery when you are ready to look for new roles.</span></div>}</section>
-    <section className="discovery-card"><div><p className="eyebrow">DISCOVERY</p><h2>Find new jobs without duplicating prior work</h2><p className="muted">Discovery searches configured sources, filters candidates, deduplicates matching jobs, and places accepted jobs into Review.</p></div><DiscoveryForm source="card" />{latestRun ? <div className="discovery-result"><b>{latestPresentation.status}</b><strong>{discoverySummary(latestRun)}</strong><p>{latestPresentation.message}{latestRun.errors ? ` ${latestRun.errors}` : ""}</p></div> : <div className="discovery-result"><b>Not run yet</b><p>Run Discovery to search configured sources and create a Review queue.</p></div>}</section>
-    <Queue title="Review" items={queues.review} emptyTitle="No jobs need review" emptyText="Discovery adds accepted jobs here for your decision." isUsable={isUsable} />
-    <Queue title="Analyze" items={queues.analyze} emptyTitle="No jobs need analysis" emptyText="Jobs you mark Interested will appear here if they still need Codex analysis." isUsable={isUsable} />
-    <Queue title="Materials" items={queues.materials} emptyTitle="No jobs need materials" emptyText="Analyzed jobs will appear here when application materials are ready to generate." isUsable={isUsable} />
-    <Queue title="Ready to Apply" items={queues.apply} emptyTitle="No jobs are ready to apply" emptyText="Generate materials for an analyzed job first." isUsable={isUsable} />
-    <section className="supporting-grid"><section className="supporting-card"><div className="section-heading"><div><p className="eyebrow">TRACKING</p><h2>Active applications</h2></div><span className="queue-count">{queues.active.length}</span></div>{queues.active.length ? <div className="item-group">{queues.active.map((job) => <JobItem key={job.job_id} job={job} isUsable={isUsable} />)}</div> : <p className="muted">Submitted applications remain visible here while active.</p>}</section><section className="supporting-card"><div className="section-heading"><div><p className="eyebrow">RETAINED RECORD</p><h2>History</h2></div><span className="queue-count">{queues.historical.length}</span></div>{queues.historical.length ? <div className="item-group">{queues.historical.map((job) => <JobItem key={job.job_id} job={job} isUsable={isUsable} />)}</div> : <p className="muted">Skipped, rejected, and withdrawn jobs are retained here.</p>}</section></section>
-    <section className="operations-grid"><section className="operations-card"><p className="eyebrow">RECENT DISCOVERY</p><h2>Run history</h2>{runs.length ? runs.map((run) => <p key={run.id}><b>{discoveryRunPresentation(run).status}</b> · {discoverySummary(run)}<br /><span className="muted">{discoverySourceOutcomes(run).map((source, index) => <span key={index}>{index > 0 ? " · " : ""}{source.name} {source.status === "succeeded" ? "✓" : "✕"} ({source.status}){source.error ? `: ${source.error}` : ""}</span>)}{!run.sources_attempted ? "No sources configured" : ""}{discoveryUnmatchedErrors(run).map((error, index) => <span key={index}> · {error}</span>)}</span></p>) : <p className="muted">No discovery runs yet.</p>}</section><section className="operations-card"><p className="eyebrow">EXPORTS</p><h2>Take your data with you</h2><p className="muted">Evaluation scores use the canonical 1–5 analysis model.</p><div className="button-row"><a className="secondary" href="/api/export?format=xlsx">Export XLSX</a><a className="secondary" href="/api/export?format=csv">Export CSV</a></div></section></section>
+    <section className="overview-status" aria-label="Current workload by stage">
+      {[["Review", counts.review, "/jobs?filter=review"], ["Analyze", counts.analyze, "/jobs?filter=analyze"], ["Materials", counts.materials, "/jobs?filter=materials"], ["Ready", counts.ready, "/applications?filter=ready"], ["Active", counts.active, "/applications"]].map(([label, count, href]) => <Link className="overview-status-item" href={String(href)} key={String(label)}><span>{label}</span><strong>{count}</strong></Link>)}
+    </section>
+
+    <div className="overview-columns">
+      <section className="overview-priority"><div className="overview-section-title"><h3>Priority</h3><Link href="/jobs">All jobs</Link></div>
+        {priorityGroups.length ? <div>{priorityGroups.map((group) => <Link className="priority-row" href={group.href} key={group.key}><strong>{counts[group.key]}</strong><span><b>{group.title}</b><small>{group.description(counts[group.key])}</small></span><span className="priority-open">Open →</span></Link>)}</div> : <p className="overview-empty">No items need action right now.</p>}
+      </section>
+      <aside className="overview-snapshot"><h3>Snapshot</h3><dl><div><dt>Jobs</dt><dd>{total}</dd></div><div><dt>New jobs</dt><dd>{queues.review.length}</dd></div><div><dt>Applied</dt><dd>{jobs.filter((job) => job.application_status === "APPLIED").length}</dd></div><div><dt>Interview</dt><dd>{jobs.filter((job) => job.application_status === "INTERVIEW").length}</dd></div><div><dt>Offer</dt><dd>{jobs.filter((job) => job.application_status === "OFFER").length}</dd></div></dl></aside>
+    </div>
   </main></DiscoveryActions>;
 }
