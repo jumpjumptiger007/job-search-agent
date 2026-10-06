@@ -4,6 +4,7 @@ const http = require("node:http");
 const net = require("node:net");
 const path = require("node:path");
 const { isChildExited } = require("./lib/child-process.cjs");
+const { openExternalUrl } = require("./lib/external-links.cjs");
 const { isInternalUrl, prepareStandaloneRuntime, readWorkspacePath, saveWorkspacePath, validateWorkspace } = require("./lib/workspace.cjs");
 
 app.setName("Job Search Agent");
@@ -205,11 +206,11 @@ if (!app.requestSingleInstanceLock()) {
     window.webContents.on("will-navigate", (event, url) => {
       if (isInternalUrl(url, allowedOrigin)) return;
       event.preventDefault();
-      void shell.openExternal(url);
+      openExternalUrl(url, (safeUrl) => shell.openExternal(safeUrl));
     });
     window.webContents.setWindowOpenHandler(({ url }) => {
       if (isInternalUrl(url, allowedOrigin)) return { action: "allow" };
-      void shell.openExternal(url);
+      openExternalUrl(url, (safeUrl) => shell.openExternal(safeUrl));
       return { action: "deny" };
     });
     window.on("closed", () => {

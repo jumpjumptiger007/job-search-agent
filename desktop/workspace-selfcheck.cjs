@@ -4,6 +4,7 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 const { isChildExited } = require("./lib/child-process.cjs");
+const { openExternalUrl } = require("./lib/external-links.cjs");
 const { isInternalUrl, loadWorkspacePath, prepareStandaloneRuntime, readWorkspacePath, saveWorkspacePath, validateWorkspace } = require("./lib/workspace.cjs");
 
 function workspaceFixture() {
@@ -53,6 +54,22 @@ test("keeps active backend routes internal without trusting other origins", () =
   assert.equal(isInternalUrl("http://127.0.0.1:43128/", origin), false);
   assert.equal(isInternalUrl("https://employer.example/jobs/1", origin), false);
   assert.equal(isInternalUrl("http://employer.example:43127/", origin), false);
+});
+
+test("opens only HTTP and HTTPS URLs externally", () => {
+  const opened = [];
+  const openExternal = (url) => opened.push(url);
+
+  assert.equal(openExternalUrl("http://employer.example/jobs/1", openExternal), true);
+  assert.equal(openExternalUrl("https://employer.example/jobs/2", openExternal), true);
+  assert.equal(openExternalUrl("file:///etc/passwd", openExternal), false);
+  assert.equal(openExternalUrl("mailto:jobs@example.com", openExternal), false);
+  assert.equal(openExternalUrl("custom-app://open", openExternal), false);
+  assert.equal(openExternalUrl("not a URL", openExternal), false);
+  assert.deepEqual(opened, [
+    "http://employer.example/jobs/1",
+    "https://employer.example/jobs/2",
+  ]);
 });
 
 test("recognizes child processes exited by code or signal", () => {
