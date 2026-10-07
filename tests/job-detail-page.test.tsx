@@ -59,12 +59,28 @@ describe("Job Detail presentation", () => {
     const job = add();
     const html = await page(job.job_id);
     expect(html).toContain("Back to Jobs");
+    expect(html).toContain('<main id="main-content"');
     expect(html).toContain("Job information");
     expect(html).toContain("Validated analysis is not available");
     expect(html).toContain("Mark Interested");
     expect(html).toContain("Skip");
     expect(html).toContain("Captured JD and source evidence");
     for (const absent of [">Requirements &amp; candidate match<", ">Gaps<", ">Keywords<", "0 / 5", "legacy score"]) expect(html).not.toContain(absent);
+  });
+
+  it("preserves all internal panel anchors and navigation links", async () => {
+    const job = add();
+    setReviewStatus(job.job_id, "INTERESTED");
+    const html = await page(job.job_id);
+
+    for (const id of ["workflow-panel", "application-panel", "materials-panel", "codex-panel", "source-panel"]) {
+      expect(html).toContain(`id="${id}"`);
+    }
+    expect(html).toContain('href="#codex-panel"');
+
+    const insufficient = add("INSUFFICIENT");
+    setReviewStatus(insufficient.job_id, "INTERESTED");
+    expect(await page(insufficient.job_id)).toContain('href="#source-panel"');
   });
 
   it("offers the Codex workflow only after review and blocks insufficient source content", async () => {

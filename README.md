@@ -19,7 +19,7 @@ The v0.9 desktop package has these limitations:
 
 ### Dashboard navigation
 
-The local dashboard separates Overview, Jobs, Applications, Discovery, History, and Exports in its sidebar. Appearance can follow the system or be set to Light or Dark on this device. Discovery displays the configured sources and recent runs; source settings are read-only in the UI and continue to be managed in the local `config/search.yaml` file.
+The local dashboard separates Overview, Jobs, Applications, Discovery, History, and Exports in its sidebar. Jobs search and queue filters show results in pages of 50; the displayed count reflects all matching jobs. Appearance can follow the system or be set to Light or Dark on this device. Discovery displays the configured sources and recent runs; source settings are read-only in the UI and continue to be managed in the local `config/search.yaml` file.
 
 The generated app is at `desktop/out/Job Search Agent-darwin-arm64/Job Search Agent.app`. Packaging does not bundle the workspace, its data, or these runtimes.
 

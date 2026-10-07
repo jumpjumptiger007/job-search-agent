@@ -21,7 +21,7 @@ export default function Overview() {
   const total = jobs.length;
   const priorityGroups = workGroups.filter(({ key }) => counts[key] > 0);
 
-  return <DiscoveryActions><main className="overview-page">
+  return <DiscoveryActions><main id="main-content" tabIndex={-1} className="overview-page">
     <section className="overview-heading"><div><h2>Current workload and anything that needs action.</h2><p>{counts.attention} {counts.attention === 1 ? "item needs" : "items need"} attention</p></div><DiscoveryForm source="overview" /></section>
     <p className="overview-breakdown">{[["review", "review"], ["analyze", "analyze"], ["materials", "materials"], ["ready", "ready to apply"]].filter(([key]) => counts[key as keyof typeof counts] > 0).map(([key, label]) => `${counts[key as keyof typeof counts]} ${label}`).join(" · ") || "No active work needs attention"}</p>
 

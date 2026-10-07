@@ -14,7 +14,7 @@ export default function Page() {
   const runs = recentRuns();
   const latest = runs[0];
   const latestOutcomes = latest ? new Map(discoverySourceOutcomes(latest).map((item) => [item.name.toLocaleLowerCase(), item])) : new Map();
-  return <DiscoveryActions successHref="/discovery"><main className="discovery-page">
+  return <DiscoveryActions successHref="/discovery"><main id="main-content" tabIndex={-1} className="discovery-page">
     <section className="page-intro"><div><h2>Discovery Control Panel</h2><p>Run the configured sources and inspect recent results. Source configuration is read-only here and managed in config/search.yaml.</p></div><DiscoveryForm source="discovery" /></section>
     <section className="discovery-sources"><div className="page-section-heading"><div><h3>Configured sources</h3><p>Current local configuration · read only</p></div></div>
       {!config.available ? <p className="inline-notice">Source configuration is unavailable or could not be read.</p> : config.sources.length ? <div className="source-list">{config.sources.map((source) => {

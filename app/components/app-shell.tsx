@@ -56,6 +56,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   }, [theme]);
 
   return <div className="app-frame">
+    <a className="skip-link" href="#main-content">Skip to content</a>
     <aside className="app-sidebar" aria-label="Primary navigation">
       <Link className="app-brand" href="/">Job Search Agent</Link>
       {(["Workspace", "Operations"] as const).map((section) => <nav className="nav-section" aria-label={section} key={section}>

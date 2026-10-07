@@ -86,7 +86,7 @@ export default async function Job({ params }: { params: Promise<{ id: string }> 
   const sourceMetadata = { canonicalSource: job.canonical_source ?? "", ats: job.ats || "Unknown", content: job.content_status || "SUBSTANTIVE", posted: job.posted_at || "Not recorded", found: job.found_at ?? "Not recorded" };
   const sourceDetailsText = `${capturedDescription}\n\nCanonical source: ${sourceMetadata.canonicalSource}\nATS: ${sourceMetadata.ats}\nSource content: ${sourceMetadata.content}\nPosted: ${sourceMetadata.posted}\nFound: ${sourceMetadata.found}`;
 
-  return <main className="job-detail-page">
+  return <main id="main-content" tabIndex={-1} className="job-detail-page">
     <Link className="back" href="/jobs">← Back to Jobs</Link>
     <section className="job-detail-heading"><div><p className="eyebrow">{job.job_id} · {next.stage.toUpperCase()}</p><h2>{job.title}</h2><p>{job.company} <span>·</span> {job.location || "Location not stated"} <span>·</span> {job.work_model || "Work model not stated"}</p></div><div className="job-detail-evaluation"><span>Evaluation</span><strong>{score}</strong></div></section>
 
